@@ -1,6 +1,8 @@
 # Kubernetes e HPA
 
-Esta implantação é independente do Compose: não importa seus volumes nem altera seus containers. Execute os comandos PowerShell na raiz do repositório. Os procedimentos de cluster abaixo são um roteiro de validação, não resultados já observados.
+Para o cluster integrado do Docker Desktop nesta máquina, veja o [procedimento local](local-setup.md), com versões fixadas dos addons, acesso em `http://localhost:8081` e overlays próprios. O roteiro genérico abaixo continua aplicável a outros clusters.
+
+Esta implantação é independente do Compose: não importa seus volumes nem altera seus containers. Execute os comandos PowerShell na raiz do repositório. Os procedimentos abaixo são um roteiro genérico; os [resultados observados no cluster local](../docs/kubernetes-validation.md) registram a execução de 8 de novembro de 2026.
 
 ## Componentes e limites
 
@@ -34,7 +36,7 @@ kubectl get ingressclass
 kubectl get apiservice v1beta1.metrics.k8s.io
 ```
 
-Instalação/ativação de cluster, controller e Metrics Server depende do ambiente e não é realizada por estes manifests. O Ingress não hospeda arquivos: a cadeia é **controller → Service frontend → Pod NGINX → Service API**. RabbitMQ e API não têm NodePort/LoadBalancer públicos. A demonstração usa HTTP local; para publicação externa, configure domínio e TLS.
+Os manifests de `base/` pressupõem um cluster, um controller e Metrics Server já disponíveis. Para Docker Desktop, os addons em `addons/` e o [procedimento local](local-setup.md) preparam esses componentes. O Ingress não hospeda arquivos: a cadeia é **controller → Service frontend → Pod NGINX → Service API**. RabbitMQ e API não têm NodePort/LoadBalancer públicos. A demonstração usa HTTP local; para publicação externa, configure domínio e TLS.
 
 ## Construir e disponibilizar imagens
 
@@ -161,7 +163,7 @@ kubectl kustomize k8s/overlays/hpa-demo
 git diff --check -- k8s
 ```
 
-Os dois renders produzem 12 recursos cada. O script verifica namespace, CPU, referências do ConfigMap com hash, ausência de Secret versionado, API uma réplica/Recreate/PVC, recursos, probes existentes, HPA e Ingress; também verifica sintaxe PowerShell e guardrails MIME/trace/CSP. Isso **não** valida todo o schema Kubernetes, sintaxe completa NGINX ou disponibilidade de storage, métricas e imagens. Complete com `--dry-run=server`, build de imagens e experimentos reais no cluster escolhido. Não há resultados live embutidos nesta entrega.
+Os dois renders produzem 12 recursos cada. O script verifica namespace, CPU, referências do ConfigMap com hash, ausência de Secret versionado, API uma réplica/Recreate/PVC, recursos, probes existentes, HPA e Ingress; também verifica sintaxe PowerShell e guardrails MIME/trace/CSP. Isso **não** valida todo o schema Kubernetes, sintaxe completa NGINX ou disponibilidade de storage, métricas e imagens. Complete com `--dry-run=server`, build de imagens e experimentos reais no cluster escolhido. Os experimentos já executados nesta máquina estão em [docs/kubernetes-validation.md](../docs/kubernetes-validation.md).
 
 Não execute `kubectl delete -k k8s`, remova namespace ou PVCs para repetir experimentos: isso pode eliminar dados. Substitua somente Pods worker nos testes de reposição. Backup, restore e remoção de dados exigem procedimento próprio.
 

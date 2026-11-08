@@ -23,6 +23,8 @@ Abra **http://127.0.0.1:8080**. Em **Aventura**, dê um nome ao herói, escolha 
 
 Para duelos livres, crie pelo menos dois personagens em **Personagens**, selecione-os na **Arena** e clique em **Iniciar batalha**. Consulte detalhes em **Histórico** e gere lotes em **Teste de carga**. A implantação Kubernetes e o roteiro de HPA estão em [k8s/README.md](k8s/README.md).
 
+O cluster local configurado no Docker Desktop usa **http://localhost:8081**, com uma base separada do Compose. Consulte [como iniciar o acesso local](k8s/local-setup.md) e as [evidências de implantação, reposição e HPA](docs/kubernetes-validation.md).
+
 A porta pode ser alterada em `APP_PORT`. Documentação interativa: **http://localhost:8080/api/docs**; contrato OpenAPI: **/api/openapi.json**. A interface principal e sua fonte são locais; o Swagger UI usa o CDN configurado pelo FastAPI e precisa de acesso à internet no navegador.
 
 ```bash
