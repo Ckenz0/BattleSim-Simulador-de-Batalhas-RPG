@@ -27,7 +27,10 @@ export class BattlePlayback {
     }
   }
   schedule(duration) {
-    this.remaining=duration;this.startedAt=this.clock.now();this.scheduledSpeed=this.speed;
+    this.remaining=duration;
+    // Observers can pause or dispose synchronously while a phase is being emitted.
+    if(this.status!=="playing")return;
+    this.startedAt=this.clock.now();this.scheduledSpeed=this.speed;
     this.timer=this.clock.setTimeout(()=>{
       this.timer=null;this.remaining=0;
       if(this.status!=="playing")return;

@@ -67,3 +67,14 @@ test("manual step during the final hit finishes instead of reading a nonexistent
  assert.equal(p.snapshot().applied,3);assert.equal(p.snapshot().status,"playing");
  p.step();assert.equal(p.snapshot().status,"finished");assert.equal(p.snapshot().winner_id,"a");
 });
+test("pause from a phase observer leaves no timer and resumes the full remaining phase",()=>{
+ const clock=fakeClock();let paused=false;
+ const p=new BattlePlayback(battle(),{clock,onChange:s=>{
+  if(s.phase==="impact" && !paused){paused=true;p.pause();}
+ }});
+ p.play();clock.tick(280);
+ assert.equal(p.snapshot().status,"paused");assert.equal(clock.pending(),0);
+ clock.tick(1000);assert.equal(p.snapshot().applied,1);
+ p.play();clock.tick(419);assert.equal(p.snapshot().phase,"impact");
+ clock.tick(1);assert.equal(p.snapshot().phase,"recover");
+});

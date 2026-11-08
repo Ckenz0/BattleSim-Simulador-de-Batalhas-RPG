@@ -166,9 +166,9 @@ function renderBattleSummary(battle) {
   details.append(el("summary","","Ver histórico dos ataques"),log);root.append(details);
 }
 
-function renderResult(battle) {
+function renderResult(battle,{force=false}={}) {
   const signature=battle?battle.id+":"+battle.status:"empty";
-  if(signature===state.resultSignature) return;
+  if(signature===state.resultSignature && !force) return;
   state.resultSignature=signature;
   const root=$("#battle-result"), badge=$("#battle-status");
   root.replaceChildren();
@@ -266,7 +266,7 @@ async function startBattle() {
   try {
     const battle=await api("/battles",{method:"POST",body:JSON.stringify({character_a_id:state.selected[0],character_b_id:state.selected[1]})});
     state.battle=battle;state.activeId=battle.id;state.watchBattleId=battle.id;sessionStorage.setItem("battle-id",battle.id);
-    renderResult(battle);notify("Os combatentes estão a caminho da arena!");await refresh();
+    renderResult(battle);notify("Os combatentes estão a caminho da arena!");void refresh();
   } catch(e) {notify(e.message,true);}
   finally {state.submitting=false;button.replaceChildren(document.createTextNode("Iniciar batalha "),icon("arrow"));renderSlots();}
 }
@@ -323,7 +323,7 @@ document.addEventListener("click",async event=>{
       const updated=await api("/battles/"+requestedId);
       if(state.activeId!==requestedId)return;
       state.battle=updated;
-      sessionStorage.setItem("battle-id",requestedId);renderResult(state.battle);showView("arena");
+      sessionStorage.setItem("battle-id",requestedId);renderResult(state.battle,{force:true});showView("arena");
     } catch(e) {notify(e.message,true);}
   }
 });

@@ -25,7 +25,7 @@ try{
  await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject;});
  ws.onmessage=event=>{
   const d=JSON.parse(event.data);
-  if(d.id){const p=pending.get(d.id);if(p){clearTimeout(p.timer);pending.delete(d.id);d.error?p.reject(d.error):p.resolve(d.result);}}
+  if(d.id){const p=pending.get(d.id);if(p){clearTimeout(p.timer);pending.delete(d.id);d.error?p.reject(new Error(p.method+": "+d.error.message)):p.resolve(d.result);}}
   if(d.method==="Runtime.exceptionThrown")errors.push(d.params.exceptionDetails.text);
   if(d.method==="Log.entryAdded" && d.params.entry.level==="error"){
    (expectedFailureUrls.has(d.params.entry.url)?expectedNetworkErrors:errors).push(d.params.entry.text);
@@ -45,7 +45,7 @@ try{
  function cdp(method,params={}){
   return new Promise((resolve,reject)=>{
    const id=++seq;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(method+" timeout"));},25000);
-   pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}));
+   pending.set(id,{resolve,reject,timer,method});ws.send(JSON.stringify({id,method,params}));
   });
  }
  async function run(expression){
@@ -138,7 +138,7 @@ try{
  await cdp('Fetch.enable',{patterns:[{urlPattern:'http://127.0.0.1:8080/api/battles/*',requestStage:'Request'}]});
  await run("document.querySelector('#start-battle').click()");
  await until(()=>heldDetail);
- await check("!document.querySelector('#start-battle').disabled");
+ await until(()=>run("!document.querySelector('#start-battle').disabled"),2000);
  await run("document.querySelector('#start-battle').click()");
  await check("!document.querySelector('#start-battle').disabled");
  holdDetails=false;
@@ -147,6 +147,16 @@ try{
  const nextState=await until(async()=>{const s=await run("document.querySelector('#battle-scene').dataset.state");return ['ready','finished'].includes(s)?s:false;});
  if(nextState!=='ready')throw Error('Stale detail response replaced the new battle or removed its playback');
  await run("document.querySelector('#skip-battle').click();document.querySelector('.victory-screen button').click()");
+ const historyBattleId=await run("fetch('/api/battles?limit=1').then(r=>r.json()).then(p=>p.items[0].id)");
+ await selectPair(['Lyra','Kael']);
+ const cleanPreview=await run("!document.querySelector('.combat-hud.low-hp')");
+ if(!cleanPreview)console.log('Preview retained low-health coloring despite full HP');
+ await run("document.querySelector('[data-view=history]').click()");
+ await check(`document.querySelector('[data-detail="${historyBattleId}"]')`);
+ await run(`document.querySelector('[data-detail="${historyBattleId}"]').click()`);
+ await check("!document.querySelector('#view-arena').hidden");
+ if(await run("document.querySelector('#battle-scene').dataset.state")!=='finished')throw Error('History did not restore the same battle after a new selection preview');
+ if(!cleanPreview)throw Error('Full-health preview retained low-health styling');
  await run("document.querySelector('[data-view=history]').click()");
  await check("document.querySelectorAll('#history-body tr').length>0");
  await run("document.querySelector('[data-view=load]').click();document.querySelector('#batch-count').value='10';document.querySelector('#start-batch').click()");

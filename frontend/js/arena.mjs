@@ -80,7 +80,7 @@ export class PixelArena {
     [this.allyHud,this.enemyHud].forEach(h=>h.root.hidden=true);
     characters.slice(0,2).forEach((character,index)=>{
       const side=index===0?"ally":"enemy",hud=index===0?this.allyHud:this.enemyHud;
-      hud.root.hidden=false;hud.name.textContent=character.name;hud.cls.textContent=classes[character.class_name];
+      hud.root.hidden=false;hud.root.classList.remove("low-hp");hud.name.textContent=character.name;hud.cls.textContent=classes[character.class_name];
       hud.bar.max=character.hp;hud.bar.value=character.hp;hud.bar.setAttribute("aria-label","Vida de "+character.name);
       hud.hp.textContent=character.hp+" / "+character.hp;
       const element=node("div","scene-fighter "+side+" "+character.class_name);
