@@ -58,6 +58,44 @@ try{
  await cdp("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"reduce"}]});
  await cdp("Page.navigate",{url:"http://127.0.0.1:8080/"});
  await check("document.querySelector('#connection')?.textContent === 'Sistema disponível'");
+ // Complete a real campaign through HTTP -> outbox -> RabbitMQ -> worker -> UI.
+ await run("document.querySelector('[data-view=adventure]').click()");
+ await check("Boolean(document.querySelector('#adventure-name') || document.querySelector('#adventure-fight') || document.querySelector('.adventure-profile'))");
+ if(!await run("Boolean(document.querySelector('#adventure-name'))")){
+  await run("document.querySelector('.adventure-profile .text-button').click()");
+  await check("Boolean(document.querySelector('.adventure-library'))");
+  await run("[...document.querySelectorAll('.adventure-library button')].find(b=>b.textContent==='Criar novo herói').click()");
+ }
+ await run("document.querySelector('#adventure-name').value='Aventura QA '+Date.now().toString(36);document.querySelector('#adventure-name').dispatchEvent(new Event('input'));document.querySelector('[name=adventure-class][value=mage]').click()");
+ for(let point=0;point<5;point++)await run("document.querySelector('[data-plus=attack]').click()");
+ if(await run("document.querySelector('.adventure-create [type=submit]').disabled"))throw Error('Five allocation points must enable creation');
+ await cdp('Page.captureScreenshot',{format:'png'}).then(r=>writeFile(path.join(out,'adventure-create-desktop.png'),Buffer.from(r.data,'base64')));
+ await run("document.querySelector('.adventure-create').requestSubmit()");
+ await check("Boolean(document.querySelector('#adventure-fight'))");
+ const adventureId=await run("localStorage.getItem('adventure-id')");
+ for(let stage=1;stage<=5;stage++){
+  await run("document.querySelector('#adventure-fight').click()");
+  await check("document.querySelector('#battle-status').textContent==='Concluída' && !document.querySelector('#skip-battle').disabled");
+  await run("document.querySelector('#skip-battle').click()");
+  await check("!document.querySelector('.victory-screen').hidden");
+  if(await run("document.querySelector('.victory-title').textContent!=='Vitória!'"))throw Error('Campaign balance regression: attack mage lost stage '+stage);
+  await run("document.querySelector('.victory-screen button').click()");
+  await check("Boolean(document.querySelector('[data-upgrade=attack]'))");
+  if(stage===1){
+   await cdp('Page.captureScreenshot',{format:'png'}).then(r=>writeFile(path.join(out,'adventure-reward-desktop.png'),Buffer.from(r.data,'base64')));
+   await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+   await run("document.querySelector('.adventure-action').scrollIntoView({block:'start'})");
+   await cdp('Page.captureScreenshot',{format:'png'}).then(r=>writeFile(path.join(out,'adventure-reward-mobile.png'),Buffer.from(r.data,'base64')));
+   if(await run("document.documentElement.scrollWidth>innerWidth+1"))throw Error('Adventure overflow at mobile width');
+   await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+   await run('window.scrollTo(0,0)');
+  }
+  await run("document.querySelector('[data-upgrade=attack]').click()");
+  await check(stage===5?"document.querySelector('.adventure-action h2')?.textContent==='Arena conquistada!'":"Boolean(document.querySelector('#adventure-fight'))");
+ }
+ await cdp('Page.reload');
+ await check("document.querySelector('.adventure-action h2')?.textContent==='Arena conquistada!'");
+ if(await run("localStorage.getItem('adventure-id')")!==adventureId)throw Error('Adventure did not recover after reload');
  for(const [name,cls] of [["Lyra","mage"],["Kael","warrior"],["Sylve","archer"]]){
   if(await run(`[...document.querySelectorAll('#character-roster h3')].some(x=>x.textContent===${JSON.stringify(name)})`))continue;
   await run(`document.querySelector('[data-view="characters"]').click();document.querySelector('#character-name').value=${JSON.stringify(name)};document.querySelector('[name="class_name"][value="${cls}"]').click();document.querySelector('#character-form').requestSubmit();`);
@@ -183,7 +221,7 @@ try{
  await capture("mobile-arena.png",true);
  const contrast=await run(`(()=>{function lum(hex){let a=hex.match(/\\w\\w/g).map(x=>parseInt(x,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return .2126*a[0]+.7152*a[1]+.0722*a[2];}return (lum('a7a8b5')+.05)/(lum('14151c')+.05)})()`);
  if(contrast<4.5)throw Error("Muted text contrast failed");
- const report={passed:["character creation for all three classes","confirmed creation stays successful without collection read","failed creation preserves input and explains recovery in Portuguese","terminal battle polling stops","two-character selection","battle result and attack history","replay steps respect reduced motion","automatic replay pauses/resumes without requesting another battle","winner hidden until playback finishes","navigation pauses without automatic resume","same-class front/back fighters","stale response cannot replace the next battle","automatic entry and archer projectile","history table","batch submission","empty-name validation","desktop and mobile overflow","navigation target sizes","muted text contrast"],contrast,errors,expectedNetworkErrors,screenshots:[path.join(out,"desktop.png"),path.join(out,"mobile.png"),path.join(out,"desktop-battle.png"),path.join(out,"desktop-victory.png"),path.join(out,"desktop-arena.png"),path.join(out,"mobile-arena.png")]};
+ const report={passed:["five-stage adventure: real queue/worker, upgrades and reload persistence","character creation for all three classes","confirmed creation stays successful without collection read","failed creation preserves input and explains recovery in Portuguese","terminal battle polling stops","two-character selection","battle result and attack history","replay steps respect reduced motion","automatic replay pauses/resumes without requesting another battle","winner hidden until playback finishes","navigation pauses without automatic resume","same-class front/back fighters","stale response cannot replace the next battle","automatic entry and archer projectile","history table","batch submission","empty-name validation","desktop and mobile overflow","navigation target sizes","muted text contrast"],contrast,errors,expectedNetworkErrors,screenshots:[path.join(out,"desktop.png"),path.join(out,"mobile.png"),path.join(out,"desktop-battle.png"),path.join(out,"desktop-victory.png"),path.join(out,"desktop-arena.png"),path.join(out,"mobile-arena.png")]};
  await writeFile(path.join(out,"report.json"),JSON.stringify(report,null,2));
  console.log(JSON.stringify(report,null,2));
  if(errors.length)process.exitCode=1;

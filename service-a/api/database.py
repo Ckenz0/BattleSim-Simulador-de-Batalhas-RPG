@@ -7,6 +7,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from battle_contracts.models import BattleEvent, BattleTask, Character, CharacterCreate, utcnow
+from .adventures import initialize_schema, apply_result
+from .persistence import insert_battle
 
 class Database:
     def __init__(self, path):
@@ -35,6 +37,7 @@ class Database:
                 CREATE INDEX IF NOT EXISTS battles_status ON battles(status);
                 CREATE INDEX IF NOT EXISTS outbox_unpublished ON outbox(published_at);
             """)
+            initialize_schema(db)
 
     @contextmanager
     def connection(self):
@@ -91,11 +94,7 @@ class Database:
             for _ in range(count):
                 task = BattleTask(battle_id=uuid4(), participants=tuple(characters), seed=secrets.randbits(63),
                                   request_id=request_id)
-                bid, payload, now = str(task.battle_id), task.model_dump_json(), task.created_at.isoformat()
-                db.execute("""INSERT INTO battles
-                    (id,batch_id,status,request_id,task_json,created_at,updated_at)
-                    VALUES (?,?,'pending',?,?,?,?)""", (bid,batch_id,request_id,payload,now,now))
-                db.execute("INSERT INTO outbox (battle_id,payload) VALUES (?,?)", (bid,payload))
+                bid = insert_battle(db, task, batch_id)
                 battle_ids.append(bid)
         return {"batch_id": batch_id, "battle_ids": battle_ids, "count": count, "status": "pending"}
 
@@ -127,9 +126,14 @@ class Database:
         with self.connection() as db:
             row = db.execute("""SELECT b.*,o.published_at FROM battles b JOIN outbox o ON o.battle_id=b.id
                                WHERE b.id=?""", (str(battle_id),)).fetchone()
+            adventure = db.execute('SELECT adventure_id AS id,stage,hero_id,hero_level FROM adventure_battles WHERE battle_id=?',
+                                   (str(battle_id),)).fetchone()
         if row is None:
             raise KeyError("Battle not found")
-        return self.battle_from_row(row)
+        battle = self.battle_from_row(row)
+        if adventure:
+            battle['adventure'] = dict(adventure)
+        return battle
 
     def list_battles(self, limit=20, offset=0, status=None, batch_id=None):
         filters, values = [], []
@@ -159,6 +163,7 @@ class Database:
                           WHERE id=?""", (event.status,utcnow().isoformat(),event.worker_id,
                           event.result.model_dump_json() if event.result else None,
                           event.error,event.processing_ms,str(event.battle_id)))
+            apply_result(db, event)
         return True
 
     def stats(self):

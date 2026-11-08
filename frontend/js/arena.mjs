@@ -12,8 +12,8 @@ export function createSprite(className,back=false){
 }
 
 export class PixelArena {
-  constructor(root,{onFinish=()=>{},onReplay=()=>{}}={}){
-    this.root=root;this.onFinish=onFinish;this.onReplay=onReplay;this.playback=null;
+  constructor(root,{onFinish=()=>{},onReplay=()=>{},onContinue=()=>{}}={}){
+    this.root=root;this.onFinish=onFinish;this.onReplay=onReplay;this.onContinue=onContinue;this.playback=null;
     this.visible=true;this.animations=[];this.introTimer=null;this.phaseKey=null;this.mode="preview";
     this.media=matchMedia("(prefers-reduced-motion: reduce)");
     this.scene=node("div","pixel-field");this.scene.setAttribute("role","group");
@@ -81,6 +81,7 @@ export class PixelArena {
     characters.slice(0,2).forEach((character,index)=>{
       const side=index===0?"ally":"enemy",hud=index===0?this.allyHud:this.enemyHud;
       hud.root.hidden=false;hud.root.classList.remove("low-hp");hud.name.textContent=character.name;hud.cls.textContent=classes[character.class_name];
+      if(this.battle?.adventure && this.battle.participants===characters && index===0)hud.cls.textContent+=' · Nv. '+this.battle.adventure.hero_level;
       hud.bar.max=character.hp;hud.bar.value=character.hp;hud.bar.setAttribute("aria-label","Vida de "+character.name);
       hud.hp.textContent=character.hp+" / "+character.hp;
       const element=node("div","scene-fighter "+side+" "+character.class_name);
@@ -223,11 +224,12 @@ export class PixelArena {
   }
   showVictory(winner){
     this.victory.replaceChildren();this.victory.hidden=false;
-    const title=node("h3","victory-title",winner?"Vitória!":"Empate!");
-    const text=node("p","",winner?winner.name+" levou a melhor neste confronto.":"Uma disputa à altura dos dois combatentes.");
+    const lost=this.battle?.adventure && winner && winner.id!==this.battle.adventure.hero_id;
+    const title=node("h3","victory-title",lost?"Tente novamente!":winner?"Vitória!":"Empate!");
+    const text=node("p","",lost?"Seu herói pode tentar esta fase novamente.":winner?winner.name+" levou a melhor neste confronto.":"Uma disputa à altura dos dois combatentes.");
     if(winner){const portrait=node("div","victory-portrait");portrait.append(createSprite(winner.class_name));this.victory.append(portrait);}
     const close=node("button","game-command","Continuar");
-    close.addEventListener("click",()=>{this.victory.hidden=true;});
+    close.addEventListener("click",()=>{this.victory.hidden=true;this.onContinue(this.battle);});
     this.victory.append(title,text,close);
   }
   pause(){this.cancelIntro();this.playback?.pause();this.animations.forEach(a=>a.pause());}

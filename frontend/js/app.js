@@ -1,4 +1,5 @@
 import {PixelArena,createSprite} from "./arena.mjs";
+import {AdventureView} from "./adventure.mjs";
 "use strict";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -13,7 +14,13 @@ const number = new Intl.NumberFormat("pt-BR");
 const state = {characters:[],selected:[],battle:null,activeId:sessionStorage.getItem("battle-id"),view:"arena",
   offset:0,filter:"",historySignature:"",resultSignature:"",submitting:false,batchSubmitting:false,refreshing:false,formSubmitting:false};
 let noticeTimer;
-const arena=new PixelArena($("#battle-scene"),{onFinish:renderBattleSummary,onReplay:renderBattleWatching});
+const arena=new PixelArena($("#battle-scene"),{onFinish:renderBattleSummary,onReplay:renderBattleWatching,
+  onContinue:battle=>{if(battle?.adventure){showView('adventure');void adventure.open(battle.adventure.id).catch(e=>notify(e.message,true));}}});
+const adventure=new AdventureView($('#adventure-root'),{api,notify,onCharacterChange:loadCharacters,
+  showBattle:battle=>{
+    state.battle=battle;state.activeId=battle.id;state.watchBattleId=battle.id;
+    sessionStorage.setItem('battle-id',battle.id);renderResult(battle,{force:true});showView('arena');void refresh();
+  }});
 function el(tag, className, text) {
   const node=document.createElement(tag);
   if(className) node.className=className;
@@ -57,8 +64,9 @@ async function api(path,options={}) {
   return response.json();
 }
 function showView(view) {
-  if(!["arena","characters","history","load"].includes(view)) return;
+  if(!["adventure","arena","characters","history","load"].includes(view)) return;
   arena.setVisible(view==="arena");
+  adventure.setVisible(view==='adventure');
   state.view=view;
   $$(".view").forEach(node=>node.hidden=node.id!=="view-"+view);
   $$(".nav-item").forEach(node=>{
@@ -66,7 +74,7 @@ function showView(view) {
     node.classList.toggle("active",active);
     if(active) node.setAttribute("aria-current","page"); else node.removeAttribute("aria-current");
   });
-  $("#view-label").textContent={arena:"Arena",characters:"Personagens",history:"Histórico",load:"Teste de carga"}[view];
+  $("#view-label").textContent={adventure:'Aventura',arena:"Arena",characters:"Personagens",history:"Histórico",load:"Teste de carga"}[view];
   history.replaceState(null,"","#"+view);
   if(view==="history") loadHistory().catch(e=>notify(e.message,true));
   $("#main").focus({preventScroll:true});
@@ -164,6 +172,7 @@ function renderBattleSummary(battle) {
     const row=el("li");row.append(el("strong","","Turno "+attack.turn+" · "+attacker.name),el("div","",attack.damage+" de dano em "+defender.name+" · "+attack.defender_hp+" de vida restante"));log.append(row);
   });
   details.append(el("summary","","Ver histórico dos ataques"),log);root.append(details);
+  if(battle.adventure){const back=el('button','button primary full','Continuar aventura');back.addEventListener('click',()=>{showView('adventure');void adventure.open(battle.adventure.id).catch(e=>notify(e.message,true));});root.append(back);}
 }
 
 function renderResult(battle,{force=false}={}) {
@@ -333,11 +342,12 @@ $("#history-filter").addEventListener("change",event=>{state.filter=event.target
 $("#history-prev").addEventListener("click",()=>{state.offset=Math.max(0,state.offset-15);loadHistory().catch(e=>notify(e.message,true));});
 $("#history-next").addEventListener("click",()=>{state.offset+=15;loadHistory().catch(e=>notify(e.message,true));});
 $(".brand").addEventListener("click",event=>{event.preventDefault();showView("arena");});
-async function poll() {await refresh();setTimeout(poll,document.hidden?8000:2000);}
+async function poll() {await refresh();if(adventure.visible)await adventure.refresh().catch(()=>{});setTimeout(poll,document.hidden?8000:2000);}
 async function init() {
   renderResult(null);renderSlots();
   $$(".class-options label").forEach(label=>{const span=$("span",label);$("svg",span)?.remove();span.prepend(createSprite($("input",label).value));});
-  const view=location.hash.slice(1);if(view) showView(view);
+  const view=location.hash.slice(1);showView(view || 'adventure');
+  await adventure.init();
   try {await loadCharacters();} catch(e) {notify("Não foi possível carregar os personagens. Recarregue a página para tentar novamente.",true);}
   await poll();
 }

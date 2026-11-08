@@ -13,6 +13,8 @@ from pydantic import Field, StrictInt, model_validator
 from battle_contracts.logging import log
 from battle_contracts.models import Character, CharacterCreate, Contract
 from .database import Database
+from .adventures import AdventureStore, AdventureConflict
+from .adventure_routes import router as adventure_router
 
 class BattleInput(Contract):
     character_a_id: UUID
@@ -31,6 +33,7 @@ def create_app(db_path: str | Path | None = None, broker_enabled=True) -> FastAP
     @asynccontextmanager
     async def lifespan(app):
         app.state.db = Database(db_path or os.getenv("DATABASE_PATH", "data/battlesim.db"))
+        app.state.adventures = AdventureStore(app.state.db)
         app.state.bus = None
         if broker_enabled:
             from .messaging import MessageBus
@@ -44,6 +47,11 @@ def create_app(db_path: str | Path | None = None, broker_enabled=True) -> FastAP
 
     app = FastAPI(title="BattleSim API", version="0.1.0", docs_url="/api/docs",
                   openapi_url="/api/openapi.json", redoc_url=None, lifespan=lifespan)
+    app.include_router(adventure_router)
+
+    @app.exception_handler(AdventureConflict)
+    async def adventure_conflict(request, exc):
+        return JSONResponse(status_code=409, content={'detail': str(exc)})
 
     @app.middleware("http")
     async def correlation(request: Request, call_next):

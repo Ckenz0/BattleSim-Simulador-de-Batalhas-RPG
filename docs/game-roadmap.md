@@ -10,12 +10,14 @@ O cenário e os personagens são PNGs locais gerados pelo imagegen integrado. Os
 
 ## Caminho para a visão completa
 
+A etapa atual acrescenta uma aventura enxuta: nome e uma das três classes, cinco pontos iniciais, cinco fases com rivais das classes existentes, um nível e uma melhoria por vitória. Progresso e recompensas ficam no SQLite da API, com aplicação idempotente junto ao resultado. As batalhas seguem automáticas pelo RabbitMQ e worker existentes. Essa camada já está disponível; as evoluções abaixo ampliam esse ciclo.
+
 | Evolução | Comportamento pretendido | Trabalho necessário |
 | --- | --- | --- |
 | Quatro classes com identidade mecânica | Guerreiro, Mago, Clérigo e Arqueiro com habilidades distintas | Definir cura, custos e defesa; versionar contratos e testar balanceamento |
 | Catálogo de inimigos | Slime, Goblin, Esqueleto, Morcego, Aranha, Orc, Lobisomem e Fantasma | Sprites/poses, atributos e comportamento por tipo |
 | Equipes e formação | Vários integrantes enfrentando um ou mais inimigos | Novo motor com seleção de alvo, iniciativa e eventos de cura/dano |
-| Progressão persistida | Experiência, níveis e evolução de atributos | Regras reproduzíveis e atualização idempotente, sem conceder XP duas vezes por reentrega |
+| Progressão ampliada | Experiência e caminhos de evolução além das cinco fases atuais | Curvas de XP, novos desbloqueios e balanceamento; manter a idempotência existente |
 | Quatro regiões e chefes | Floresta, deserto, montanha e castelo; chefes associados | Cenários, encontros, desbloqueios e mapa de progresso |
 | Comandos de combate | Atacar, habilidade, defender, item e fugir com efeitos reais | Definir modo automático e modo com decisões do jogador; comandos também atravessam o broker |
 

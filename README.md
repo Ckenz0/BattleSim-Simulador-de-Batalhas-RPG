@@ -1,6 +1,6 @@
 # BattleSim — Simulador de Batalhas RPG
 
-Crie personagens, selecione dois combatentes e acompanhe batalhas por turnos processadas de forma assíncrona. Projeto acadêmico de **Serviços em Nuvem — Engenharia da Computação**.
+Crie um herói, escolha sua classe e conquiste cinco fases com melhorias por vitória. Também é possível selecionar dois combatentes e acompanhar duelos por turnos processados de forma assíncrona. Projeto acadêmico de **Serviços em Nuvem — Engenharia da Computação**.
 
 A primeira entrega usa Python, FastAPI, SQLite, RabbitMQ, NGINX, Docker Compose e HTML/CSS/JavaScript. O foco é demonstrar uma arquitetura distribuída pequena, observável e reproduzível.
 
@@ -19,7 +19,9 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Abra **http://localhost:8080**. Crie pelo menos dois personagens em **Personagens**, selecione-os na **Arena** e clique em **Iniciar batalha**. Consulte detalhes em **Histórico** e gere lotes em **Teste de carga**.
+Abra **http://127.0.0.1:8080**. Em **Aventura**, dê um nome ao herói, escolha Guerreiro, Mago ou Arqueiro, distribua cinco pontos e entre na primeira fase. A luta é automática: acompanhe a animação ou avance até o desfecho. Clique em **Continuar** e escolha uma melhoria. O progresso fica salvo no servidor; o navegador lembra o último herói. **Continuar um herói salvo** permite recuperar outra aventura nesta instalação.
+
+Para duelos livres, crie pelo menos dois personagens em **Personagens**, selecione-os na **Arena** e clique em **Iniciar batalha**. Consulte detalhes em **Histórico** e gere lotes em **Teste de carga**. A implantação Kubernetes e o roteiro de HPA estão em [k8s/README.md](k8s/README.md).
 
 A porta pode ser alterada em `APP_PORT`. Documentação interativa: **http://localhost:8080/api/docs**; contrato OpenAPI: **/api/openapi.json**. A interface principal e sua fonte são locais; o Swagger UI usa o CDN configurado pelo FastAPI e precisa de acesso à internet no navegador.
 
@@ -70,8 +72,17 @@ A API registra batalha e outbox na mesma transação antes de retornar **HTTP 20
 | GET | /api/battles/{id} | Resultado e ataques |
 | POST | /api/battles/batch | Lote de 1 a 1000 batalhas; retorna 202 |
 | GET | /api/stats | Estados, tempo médio e distribuição por worker |
+| GET | /api/adventures/catalog | Classes, cinco fases e ganhos por atributo |
+| POST / GET | /api/adventures | Criar herói com cinco pontos / listar aventuras |
+| GET | /api/adventures/{id} | Herói, nível, fase e recompensa pendente |
+| POST | /api/adventures/{id}/battles | Solicitar tentativa da fase atual; retorna 202 |
+| POST | /api/adventures/{id}/upgrades | Escolher melhoria com attribute e battle_id |
 
 Listagens retornam `items`, `total`, `limit` e `offset`. Personagens: limite padrão 50, máximo 100. Batalhas: padrão 20, máximo 100. Estados: `pending`, `processing`, `completed`, `failed`.
+
+Na aventura, os cinco pontos iniciais rendem +12 de vida, +3 de ataque, +2 de defesa ou +2 de velocidade por ponto. Vitória sobe um nível e permite escolher +20 de vida, +4 de ataque, +3 de defesa ou +3 de velocidade. Derrota, empate e falha permitem repetir a fase com vida cheia; não concedem avanço. A quinta recompensa conclui a aventura no nível 6. Os adversários usam as três classes existentes. Não há comandos manuais, inventário, experiência fracionada ou combate em equipe nesta etapa.
+
+Tentativas simultâneas compartilham a batalha pendente. Resultado e progresso são gravados na mesma transação; recompensas são vinculadas à batalha e idempotentes. Uma repetição da mesma escolha não concede atributos novamente. Os snapshots dos confrontos anteriores preservam os atributos usados naquela luta. Esta instalação acadêmica compartilha os heróis entre os visitantes e não possui contas ou autenticação.
 
 Exemplo em PowerShell:
 
@@ -119,7 +130,7 @@ Python 3.11 e [uv](https://docs.astral.sh/uv/) são usados para desenvolvimento.
 ```bash
 uv sync --locked
 uv run pytest -q
-node --test tests/playback.test.mjs
+node --test tests/playback.test.mjs tests/adventure.test.mjs
 # Com os quatro containers já em execução:
 uv run pytest -m integration -v
 ```
@@ -146,6 +157,6 @@ uv run python scripts/export_contracts.py
 - `nginx/`: proxy, acesso externo e correlação de requisições.
 - `tests/`: regras, persistência, API, carga CPU e integração real.
 - `docs/`: arquitetura e roteiro reproduzível.
-- `k8s/`: plano da segunda etapa; manifestos completos ainda não implementados.
+- `k8s/`: manifestos Kustomize, volumes, Ingress NGINX, HPA de CPU e roteiro de validação em cluster.
 
 Integrantes: **Cauê Kenzo Adaniya** ([Ckenz0](https://github.com/Ckenz0)), **Bruno Oliveira** ([mo-bruno](https://github.com/mo-bruno)) e **Rafael** ([RafaelBeniites](https://github.com/RafaelBeniites)). O histórico registra evolução e coautoria. Configurações locais de agentes e credenciais não fazem parte da entrega.

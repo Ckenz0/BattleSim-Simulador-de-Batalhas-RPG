@@ -9,6 +9,7 @@
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/arena.css">
+  <link rel="stylesheet" href="/css/adventure.css">
   <script src="/js/app.js" type="module"></script>
 </head>
 <body>
@@ -28,6 +29,7 @@
       <svg class="brand-mark"><use href="#swords"/></svg><span>BATTLE<span class="brand-light">SIM</span></span>
     </a>
     <nav aria-label="Navegação principal">
+      <button class="nav-item" data-view="adventure"><svg><use href="#book"/></svg>Aventura</button>
       <button class="nav-item active" data-view="arena" aria-current="page"><svg><use href="#swords"/></svg>Arena</button>
       <button class="nav-item" data-view="characters"><svg><use href="#shield"/></svg>Personagens <span id="roster-count" class="nav-count">0</span></button>
       <button class="nav-item" data-view="history"><svg><use href="#history-icon"/></svg>Histórico</button>
@@ -39,6 +41,10 @@
     <header class="topbar"><span id="view-label">Arena</span><span id="connection" class="connection">Conectando ao sistema…</span></header>
     <main id="main" tabindex="-1">
       <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <section id="view-adventure" class="view" hidden>
+        <div class="page-title"><div><h1>Uma pequena grande aventura</h1><p>Um herói. Cinco desafios. Uma melhoria a cada vitória.</p></div></div>
+        <div id="adventure-root"></div>
+      </section>
       <section id="view-arena" class="view">
         <div class="page-title"><div><h1>Arena de batalha</h1><p>Dois personagens. Uma disputa. Cada turno conta.</p></div><button class="button secondary" data-goto="characters"><svg><use href="#plus"/></svg>Criar personagem</button></div>
         <div class="stats-strip" aria-label="Resumo das batalhas">
