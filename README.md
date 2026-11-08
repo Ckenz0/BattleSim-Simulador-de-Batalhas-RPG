@@ -90,7 +90,9 @@ Invoke-RestMethod "$base/battles/batch" -Method Post -ContentType 'application/j
 
 Classes: `warrior`, `mage`, `archer`. Limites: nome de 1 a 60 caracteres; vida 1–1000; ataque 1–200; defesa 0–150; velocidade 1–100. Classes fornecem presets na interface; não acrescentam poderes especiais.
 
-No resultado, **Rever combate** reproduz o histórico já calculado com barras de vida, sem solicitar outra batalha. É possível pausar e continuar; com movimento reduzido ativado no sistema, cada clique avança um turno.
+Na arena 2D, o aliado aparece de costas e o adversário à frente, em um cenário colorido com sprites originais. Cada golpe anima a classe do atacante e reduz a vida no impacto. Ao fim, a tela de vitória apresenta o vencedor. **Assistir**, **Pausar**, **Avançar turno**, **Ver desfecho** e velocidades **1×/2×/4×** controlam a reprodução sem solicitar outra batalha. Com movimento reduzido, os turnos avançam por clique. Sair da arena ou ocultar a aba pausa a reprodução.
+
+A visão de equipes, quatro classes, inimigos, chefes, cenários e progressão está organizada em [docs/game-roadmap.md](docs/game-roadmap.md). Esta entrega implementa sua base visual com os duelos existentes.
 
 Velocidade define o primeiro atacante; empates usam a semente. Cada turno é uma ação de ataque. Dano = máximo entre 1 e a parte inteira de ataque × variação(0,9–1,1) − defesa × 0,5, limitado à vida restante. Até 200 ações por tarefa; atingir o limite sem nocaute produz empate. O mesmo snapshot e seed reproduzem o resultado.
 
@@ -117,6 +119,7 @@ Python 3.11 e [uv](https://docs.astral.sh/uv/) são usados para desenvolvimento.
 ```bash
 uv sync --locked
 uv run pytest -q
+node --test tests/playback.test.mjs
 # Com os quatro containers já em execução:
 uv run pytest -m integration -v
 ```

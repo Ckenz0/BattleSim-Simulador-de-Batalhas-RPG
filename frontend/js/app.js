@@ -1,8 +1,8 @@
+import {PixelArena,createSprite} from "./arena.mjs";
 "use strict";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const labels = {warrior:"Guerreiro",mage:"Mago",archer:"Arqueiro"};
-const icons = {warrior:"shield",mage:"book",archer:"bow"};
 const statuses = {pending:"Na fila",processing:"Em combate",completed:"Concluída",failed:"Com erro"};
 const presets = {
   warrior:{hp:160,attack:45,defense:40,speed:30},
@@ -13,6 +13,7 @@ const number = new Intl.NumberFormat("pt-BR");
 const state = {characters:[],selected:[],battle:null,activeId:sessionStorage.getItem("battle-id"),view:"arena",
   offset:0,filter:"",historySignature:"",resultSignature:"",submitting:false,batchSubmitting:false,refreshing:false,formSubmitting:false};
 let noticeTimer;
+const arena=new PixelArena($("#battle-scene"),{onFinish:renderBattleSummary,onReplay:renderBattleWatching});
 function el(tag, className, text) {
   const node=document.createElement(tag);
   if(className) node.className=className;
@@ -27,7 +28,8 @@ function icon(name) {
 }
 function avatar(character) {
   const node=el("div","avatar "+character.class_name);
-  node.append(icon(icons[character.class_name] || "shield")); return node;
+  node.classList.add("sprite-avatar");
+  node.append(createSprite(character.class_name)); return node;
 }
 function notify(text, error=false) {
   clearTimeout(noticeTimer);
@@ -56,7 +58,7 @@ async function api(path,options={}) {
 }
 function showView(view) {
   if(!["arena","characters","history","load"].includes(view)) return;
-  if(view!=="arena") state.stopReplay?.();
+  arena.setVisible(view==="arena");
   state.view=view;
   $$(".view").forEach(node=>node.hidden=node.id!=="view-"+view);
   $$(".nav-item").forEach(node=>{
@@ -84,6 +86,7 @@ function renderSlots() {
     const hp=el("div","slot-hp",number.format(character.hp)+" de vida"), bar=el("div","hp-bar");bar.append(el("div","hp-fill"));hp.append(bar);
     root.append(clear,avatar(character),el("h3","",character.name),el("p","",labels[character.class_name]),hp);
   });
+  arena.previewParticipants(state.selected.map(id=>state.characters.find(c=>c.id===id)).filter(Boolean));
   $("#selection-count").textContent=state.selected.length+" de 2 selecionados";
   $("#start-hint").textContent=state.selected.length===2?"Tudo pronto. Que vença o melhor.":"Escolha dois personagens abaixo para começar.";
   $("#start-battle").disabled=state.selected.length!==2 || state.submitting;
@@ -127,6 +130,7 @@ function toggleCharacter(id) {
   else if(state.selected.length<2) state.selected.push(id);
   else {notify("Dois combatentes já estão selecionados. Remova um deles para trocar.");return;}
   renderCharacters();
+  arena.previewParticipants(state.selected.map(id=>state.characters.find(c=>c.id===id)).filter(Boolean),{force:true});
 }
 async function loadCharacters() {
   let items=[],page;
@@ -143,75 +147,17 @@ function resultFacts(pairs) {
   pairs.forEach(([label,value])=>{const row=el("div");row.append(el("dt","",label),el("dd","",value));list.append(row);});
   return list;
 }
-function replayPanel(battle) {
-  const root=el("section","replay-panel"), tracks=el("div","replay-tracks");
-  const bars=new Map();
-  battle.participants.forEach(character=>{
-    const track=el("div"), label=el("div","replay-label"), hp=el("span","",character.hp);
-    label.append(el("span","",character.name),hp);
-    const bar=el("progress");bar.max=character.hp;bar.value=character.hp;
-    bar.setAttribute("aria-label","Vida de "+character.name);
-    track.append(label,bar);tracks.append(track);bars.set(character.id,{bar,hp,initial:character.hp});
-  });
-  const line=el("p","replay-line","Reproduza os ataques desta batalha, turno a turno.");
-  line.setAttribute("role","status");
-  const button=el("button","button secondary full","Rever combate");button.id="replay-button";
-  const attacks=battle.result.attacks;
-  let index=0,timer=null;
-  const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function pause() {
-    if(timer!==null) clearInterval(timer);
-    timer=null;
-    button.textContent=index>0 && index<attacks.length?(reduced()?"Próximo turno":"Continuar replay"):"Rever combate";
-  }
-  function advance() {
-    const attack=attacks[index++], defender=bars.get(attack.defender_id);
-    defender.bar.value=attack.defender_hp;defender.hp.textContent=attack.defender_hp;
-    const attacker=battle.participants.find(x=>x.id===attack.attacker_id);
-    line.textContent="Turno "+attack.turn+" de "+attacks.length+" · "+attacker.name+" causou "+attack.damage+" de dano.";
-    if(index===attacks.length) pause();
-    else if(reduced()) button.textContent="Próximo turno";
-  }
-  button.addEventListener("click",()=>{
-    if(timer!==null) {pause();return;}
-    if(index===attacks.length) {
-      index=0;bars.forEach(({bar,hp,initial})=>{bar.value=initial;hp.textContent=initial;});
-    }
-    advance();
-    if(!reduced() && index<attacks.length) {
-      button.textContent="Pausar replay";timer=setInterval(advance,650);
-    }
-  });
-  state.stopReplay=pause;
-  root.append(tracks,line,button);return root;
+function renderBattleWatching(battle) {
+  $("#battle-result").replaceChildren(emptyState("Acompanhe o confronto","Assista aos golpes na arena. O resultado aparece ao fim da batalha."));
 }
-function renderResult(battle) {
-  const signature=battle?battle.id+":"+battle.status:"empty";
-  if(signature===state.resultSignature) return;
-  state.stopReplay?.();state.stopReplay=null;
-  state.resultSignature=signature;
-  const root=$("#battle-result"), badge=$("#battle-status");
-  root.replaceChildren();
-  badge.textContent=battle?statuses[battle.status]:"Aguardando";
-  badge.className="badge "+(battle?.status || "");
-  if(!battle) {root.append(emptyState("A arena espera por você","Inicie uma batalha para acompanhar o resultado e o histórico dos ataques."));return;}
-  if(battle.status==="pending" || battle.status==="processing") {
-    const node=el("div","empty small-empty");
-    node.append(el("div","processing-mark"),el("h2","",battle.status==="pending"?"Confronto na fila":"Batalha em andamento"),
-      el("p","",battle.status==="pending"?"Seu pedido está salvo. O resultado aparecerá aqui quando o processamento terminar.":"Os combatentes estão na arena. Você pode continuar usando o simulador."));
-    root.append(node);return;
-  }
-  if(battle.status==="failed") {
-    root.append(emptyState("O confronto não terminou","Houve uma falha no processamento. Você pode solicitar uma nova batalha."));
-    return;
-  }
+function renderBattleSummary(battle) {
+  const root=$("#battle-result");root.replaceChildren();
   const result=battle.result,winner=battle.participants.find(c=>c.id===result.winner_id);
   const winnerNode=el("div","winner");
   winnerNode.append(winner?avatar(winner):avatar(battle.participants[0]),el("h3","",winner?winner.name:"Empate"),
     el("p","",winner?"Venceu o confronto":"O limite de turnos foi atingido"));
   const duration=number.format(Math.round(battle.processing_ms || 0))+" ms";
   root.append(winnerNode,resultFacts([["Turnos",result.turns],["Dano total",number.format(Object.values(result.total_damage).reduce((a,b)=>a+b,0))],["Processamento",duration]]));
-  root.append(replayPanel(battle));
   const details=el("details"),log=el("ol","attack-log");
   result.attacks.forEach(attack=>{
     const attacker=battle.participants.find(c=>c.id===attack.attacker_id),defender=battle.participants.find(c=>c.id===attack.defender_id);
@@ -219,6 +165,34 @@ function renderResult(battle) {
   });
   details.append(el("summary","","Ver histórico dos ataques"),log);root.append(details);
 }
+
+function renderResult(battle) {
+  const signature=battle?battle.id+":"+battle.status:"empty";
+  if(signature===state.resultSignature) return;
+  state.resultSignature=signature;
+  const root=$("#battle-result"), badge=$("#battle-status");
+  root.replaceChildren();
+  badge.textContent=battle?statuses[battle.status]:"Aguardando";
+  badge.className="badge "+(battle?.status || "");
+  if(!battle) {root.append(emptyState("A arena espera por você","Inicie uma batalha para acompanhar o resultado e o histórico dos ataques."));return;}
+  if(battle.status==="pending" || battle.status==="processing") {
+    arena.waitFor(battle);
+    const node=el("div","empty small-empty");
+    node.append(el("div","processing-mark"),el("h2","",battle.status==="pending"?"Confronto na fila":"Batalha em andamento"),
+      el("p","",battle.status==="pending"?"Seu pedido está salvo. O resultado aparecerá aqui quando o processamento terminar.":"Os combatentes estão na arena. Você pode continuar usando o simulador."));
+    root.append(node);return;
+  }
+  if(battle.status==="failed") {
+    arena.failure(battle);
+    root.append(emptyState("O confronto não terminou","Houve uma falha no processamento. Você pode solicitar uma nova batalha."));
+    return;
+  }
+  const fresh=state.watchBattleId===battle.id;
+  if(fresh)state.watchBattleId=null;
+  renderBattleWatching(battle);
+  arena.loadBattle(battle,{fresh});
+}
+
 function renderStats(stats) {
   $$("[data-stat]").forEach(node=>node.textContent=number.format(stats[node.dataset.stat] || 0));
   $("#average-time").textContent=number.format(Math.round(stats.average_processing_ms))+" ms";
@@ -268,10 +242,14 @@ async function refresh() {
     await loadHistory();
     const terminal=state.battle && state.battle.id===state.activeId && ["completed","failed"].includes(state.battle.status);
     if(state.activeId && !terminal) {
+      const requestedId=state.activeId;
       try {
-        state.battle=await api("/battles/"+state.activeId);
+        const updated=await api("/battles/"+requestedId);
+        if(state.activeId!==requestedId)return;
+        state.battle=updated;
         renderResult(state.battle);
       } catch(e) {
+        if(state.activeId!==requestedId)return;
         if(e.status===404) {state.activeId=null;sessionStorage.removeItem("battle-id");renderResult(null);}
         else throw e;
       }
@@ -287,8 +265,8 @@ async function startBattle() {
   const button=$("#start-battle");button.textContent="Solicitando…";
   try {
     const battle=await api("/battles",{method:"POST",body:JSON.stringify({character_a_id:state.selected[0],character_b_id:state.selected[1]})});
-    state.battle=battle;state.activeId=battle.id;sessionStorage.setItem("battle-id",battle.id);
-    renderResult(battle);notify("Batalha solicitada. Acompanhe o resultado ao lado.");await refresh();
+    state.battle=battle;state.activeId=battle.id;state.watchBattleId=battle.id;sessionStorage.setItem("battle-id",battle.id);
+    renderResult(battle);notify("Os combatentes estão a caminho da arena!");await refresh();
   } catch(e) {notify(e.message,true);}
   finally {state.submitting=false;button.replaceChildren(document.createTextNode("Iniciar batalha "),icon("arrow"));renderSlots();}
 }
@@ -341,8 +319,11 @@ document.addEventListener("click",async event=>{
   }
   if(button.dataset.detail) {
     try {
-      state.activeId=button.dataset.detail;state.battle=await api("/battles/"+state.activeId);
-      sessionStorage.setItem("battle-id",state.activeId);renderResult(state.battle);showView("arena");
+      const requestedId=button.dataset.detail;state.activeId=requestedId;
+      const updated=await api("/battles/"+requestedId);
+      if(state.activeId!==requestedId)return;
+      state.battle=updated;
+      sessionStorage.setItem("battle-id",requestedId);renderResult(state.battle);showView("arena");
     } catch(e) {notify(e.message,true);}
   }
 });
@@ -355,6 +336,7 @@ $(".brand").addEventListener("click",event=>{event.preventDefault();showView("ar
 async function poll() {await refresh();setTimeout(poll,document.hidden?8000:2000);}
 async function init() {
   renderResult(null);renderSlots();
+  $$(".class-options label").forEach(label=>{const span=$("span",label);$("svg",span)?.remove();span.prepend(createSprite($("input",label).value));});
   const view=location.hash.slice(1);if(view) showView(view);
   try {await loadCharacters();} catch(e) {notify("Não foi possível carregar os personagens. Recarregue a página para tentar novamente.",true);}
   await poll();

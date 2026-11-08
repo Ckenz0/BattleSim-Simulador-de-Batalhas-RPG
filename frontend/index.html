@@ -8,7 +8,8 @@
   <title>BattleSim — Arena de batalhas RPG</title>
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/app.css">
-  <script src="/js/app.js" defer></script>
+  <link rel="stylesheet" href="/css/arena.css">
+  <script src="/js/app.js" type="module"></script>
 </head>
 <body>
   <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -49,7 +50,8 @@
         <div class="arena-layout">
           <div>
             <section class="arena-stage" aria-labelledby="duel-title">
-              <div class="section-heading"><h2 id="duel-title">Prepare o confronto</h2><span id="selection-count">0 de 2 selecionados</span></div>
+              <div class="section-heading"><h2 id="duel-title">Campo de batalha</h2><span id="selection-count">0 de 2 selecionados</span></div>
+              <div id="battle-scene" class="pixel-stage"></div>
               <div class="combatants"><div id="slot-a" class="fighter-slot"></div><div class="versus" aria-label="contra"><svg><use href="#swords"/></svg><span>VS</span></div><div id="slot-b" class="fighter-slot"></div></div>
               <div class="start-row"><p id="start-hint">Escolha dois personagens abaixo para começar.</p><button id="start-battle" class="button primary" disabled>Iniciar batalha <svg><use href="#arrow"/></svg></button></div>
             </section>

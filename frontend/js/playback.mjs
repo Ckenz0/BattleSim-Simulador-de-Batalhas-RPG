@@ -65,6 +65,7 @@ export class BattlePlayback {
     if(this.status==="playing")this.pause();
     if(this.status==="finished")this.reset();
     this.cancelTimer();
+    if(this.applied>=this.battle.result.attacks.length){this.finish();return;}
     this.attack=this.battle.result.attacks[this.applied];
     this.hp[this.attack.defender_id]=this.attack.defender_hp;
     this.applied++;this.phase="manual";this.status="paused";

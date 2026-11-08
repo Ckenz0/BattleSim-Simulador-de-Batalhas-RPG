@@ -61,3 +61,9 @@ test("draw has no winner and snapshots cannot mutate playback health",()=>{
  assert.equal(p.snapshot().hp.a,100);p.finish();assert.equal(p.snapshot().winner_id,null);
  assert.equal(p.snapshot().outcome,"draw");
 });
+test("manual step during the final hit finishes instead of reading a nonexistent next attack",()=>{
+ const clock=fakeClock(),p=new BattlePlayback(battle(),{clock});
+ p.play();clock.tick(2200);
+ assert.equal(p.snapshot().applied,3);assert.equal(p.snapshot().status,"playing");
+ p.step();assert.equal(p.snapshot().status,"finished");assert.equal(p.snapshot().winner_id,"a");
+});

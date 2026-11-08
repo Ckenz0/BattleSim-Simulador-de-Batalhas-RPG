@@ -12,6 +12,7 @@ const child=spawn(process.env.BROWSER_PATH || "C:/Program Files (x86)/Microsoft/
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 let ws;const pending=new Map();let seq=0;const errors=[];const detailRequests=[];let createdResponses=0,battleRequests=0;
 let blockedMethod='GET';const expectedFailureUrls=new Set();const expectedNetworkErrors=[];
+let holdDetails=false,heldDetail=null;
 async function until(check,timeout=20000){
  const end=Date.now()+timeout;
  while(Date.now()<end){try{const x=await check();if(x)return x;}catch{}await delay(100);}
@@ -33,6 +34,9 @@ try{
   if(d.method==="Network.requestWillBeSent" && d.params.request.method==='POST' && d.params.request.url.endsWith('/api/battles'))battleRequests++;
   if(d.method==="Network.responseReceived" && d.params.response.url.endsWith('/api/characters') && d.params.response.status===201)createdResponses++;
   if(d.method==="Fetch.requestPaused"){
+   if(holdDetails && d.params.request.method==='GET' && /\/api\/battles\/[0-9a-f-]+$/.test(d.params.request.url)){
+    heldDetail={requestId:d.params.requestId,url:d.params.request.url};return;
+   }
    const method=d.params.request.method===blockedMethod?"Fetch.failRequest":"Fetch.continueRequest";
    if(method==='Fetch.failRequest')expectedFailureUrls.add(d.params.request.url);
    cdp(method,{requestId:d.params.requestId,...(method==='Fetch.failRequest'?{errorReason:"InternetDisconnected"}:{})}).catch(()=>{});
@@ -78,28 +82,71 @@ try{
  await run(`document.querySelector('[data-view="arena"]').click();for(const name of ["Lyra","Kael"]){[...document.querySelectorAll('#arena-roster .character-card')].find(x=>x.querySelector('h3').textContent===name).querySelector('button').click();}`);
  if(await run("document.querySelector('#start-battle').disabled"))throw Error("Valid pair did not enable battle");
  await run("document.querySelector('#start-battle').click()");
- await check("!document.querySelector('#start-battle').disabled && document.querySelector('#battle-status').textContent === 'Concluída'");
+ await check("!document.querySelector('#start-battle').disabled && document.querySelector('#battle-status').textContent === 'Concluída' && document.querySelector('#battle-scene').dataset.state==='ready'");
+ if(await run("Boolean(document.querySelector('#battle-result .winner'))"))throw Error('Winner revealed before playback');
  const requestsAtCompletion=detailRequests.length;await delay(4500);
  if(detailRequests.length!==requestsAtCompletion)throw Error('Terminal battle is still polled');
- await run("document.querySelector('#battle-result summary').click()");
- if(!(await run("document.querySelectorAll('.attack-log li').length")))throw Error("Attack history empty");
- await check("document.querySelector('#replay-button')");
  const requestsBeforeReplay=battleRequests;
  await run("document.querySelector('#replay-button').click()");
- await check("document.querySelector('.replay-line').textContent.startsWith('Turno 1')");
+ await check("document.querySelector('.scene-turn').textContent.startsWith('Turno 1')");
  await run("document.querySelector('#replay-button').click()");
- await check("document.querySelector('.replay-line').textContent.startsWith('Turno 2')");
+ await check("document.querySelector('.scene-turn').textContent.startsWith('Turno 2')");
  await cdp("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"no-preference"}]});
+ await run("document.querySelector('#playback-speed').value='4';document.querySelector('#playback-speed').dispatchEvent(new Event('change'));document.querySelector('#replay-button').click()");
+ await check("document.querySelector('#replay-button').textContent==='Pausar'");
  await run("document.querySelector('#replay-button').click()");
- await check("document.querySelector('#replay-button').textContent==='Pausar replay'");
+ const pausedText=await run("document.querySelector('.scene-turn').textContent");
+ await delay(600);
+ if(await run("document.querySelector('.scene-turn').textContent")!==pausedText)throw Error('Battle advanced while paused');
+ await run("document.querySelector('#replay-button').click();document.querySelector('[data-view=history]').click()");
+ await check("document.querySelector('#battle-scene').dataset.state==='paused'");
+ await run("document.querySelector('[data-view=arena]').click()");
+ if(await run("document.querySelector('#battle-scene').dataset.state")!=='paused')throw Error('Battle resumed without consent after navigation');
  await run("document.querySelector('#replay-button').click()");
- const pausedLine=await run("document.querySelector('.replay-line').textContent");
- await delay(800);
- if(await run("document.querySelector('.replay-line').textContent")!==pausedLine)throw Error('Replay advanced while paused');
- await run("document.querySelector('#replay-button').click()");
- await check("document.querySelector('#replay-button').textContent==='Rever combate'");
+ await check("document.querySelector('#battle-scene').dataset.state==='finished'");
+ if(!(await run("Boolean(document.querySelector('#battle-result .winner'))")))throw Error('No final result after playback');
+ await run("document.querySelector('.victory-screen button').click();document.querySelector('#battle-result summary').click()");
+ if(!(await run("document.querySelectorAll('.attack-log li').length")))throw Error('Attack history empty');
  if(battleRequests!==requestsBeforeReplay)throw Error('Replay requested another battle');
+ const assetSize=await run("(async()=>{const i=new Image();i.src='/assets/combatants.png';await i.decode();return [i.naturalWidth,i.naturalHeight]})()");
+ if(assetSize[0]*1.5!==assetSize[1])throw Error('Sprite atlas grid aspect ratio invalid');
  await cdp("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"reduce"}]});
+ // Same-class combatants must use separate front/back sprites and independent health.
+ const mageNames=await run("[...document.querySelectorAll('#arena-roster .character-card')].filter(x=>x.querySelector('.class-label').textContent==='Mago').slice(0,2).map(x=>x.querySelector('h3').textContent)");
+ async function selectPair(names){
+   await run(`document.querySelector('[data-view=arena]').click();while(document.querySelector('#arena-roster [aria-pressed=true]'))document.querySelector('#arena-roster [aria-pressed=true]').click();for(const name of ${JSON.stringify(names)}){[...document.querySelectorAll('#arena-roster .character-card')].find(x=>x.querySelector('h3').textContent===name).querySelector('button').click();}`);
+ }
+ await selectPair(mageNames);
+ await run("document.querySelector('#start-battle').click()");
+ await check("document.querySelector('#battle-scene').dataset.state==='ready' && !document.querySelector('#start-battle').disabled");
+ if(!(await run("Boolean(document.querySelector('.scene-fighter.ally .mage.back') && document.querySelector('.scene-fighter.enemy .mage.front'))")))throw Error('Same-class sprites not oriented independently');
+ await run("document.querySelector('#skip-battle').click();document.querySelector('.victory-screen button').click()");
+ // Exercise automatic entry and an actual archer projectile.
+ await cdp("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"no-preference"}]});
+ await selectPair(["Sylve","Kael"]);
+ await run("document.querySelector('#playback-speed').value='1';document.querySelector('#playback-speed').dispatchEvent(new Event('change'));document.querySelector('#start-battle').click()");
+ await check("document.querySelector('.attack-projectile.archer')");
+ await run("document.querySelector('#replay-button').click();window.scrollTo(0,0)");
+ if(await run("document.querySelector('#battle-scene').dataset.state")!=='paused')throw Error('Automatic scene did not pause');
+ await capture("desktop-battle.png",true);
+ await run("document.querySelector('#skip-battle').click()");
+ await capture("desktop-victory.png",true);
+ await run("document.querySelector('.victory-screen button').click()");
+ await cdp("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"reduce"}]});
+ // An old delayed detail response must not replace the next accepted battle.
+ holdDetails=true;heldDetail=null;
+ await cdp('Fetch.enable',{patterns:[{urlPattern:'http://127.0.0.1:8080/api/battles/*',requestStage:'Request'}]});
+ await run("document.querySelector('#start-battle').click()");
+ await until(()=>heldDetail);
+ await check("!document.querySelector('#start-battle').disabled");
+ await run("document.querySelector('#start-battle').click()");
+ await check("!document.querySelector('#start-battle').disabled");
+ holdDetails=false;
+ await cdp('Fetch.continueRequest',{requestId:heldDetail.requestId});
+ await cdp('Fetch.disable');
+ const nextState=await until(async()=>{const s=await run("document.querySelector('#battle-scene').dataset.state");return ['ready','finished'].includes(s)?s:false;});
+ if(nextState!=='ready')throw Error('Stale detail response replaced the new battle or removed its playback');
+ await run("document.querySelector('#skip-battle').click();document.querySelector('.victory-screen button').click()");
  await run("document.querySelector('[data-view=history]').click()");
  await check("document.querySelectorAll('#history-body tr').length>0");
  await run("document.querySelector('[data-view=load]').click();document.querySelector('#batch-count').value='10';document.querySelector('#start-batch').click()");
@@ -108,22 +155,25 @@ try{
  await check("!document.querySelector('#form-error').hidden");
  await run("document.querySelector('[data-view=arena]').click();document.querySelector('#main').focus();window.scrollTo(0,0)");
  await run("document.fonts.ready");
- async function capture(name){
+ async function capture(name,viewport=false){
    const metrics=await cdp("Page.getLayoutMetrics");
    const r=await cdp("Page.captureScreenshot",{format:"png",captureBeyondViewport:true,
-    clip:{x:0,y:0,width:metrics.cssContentSize.width,height:metrics.cssContentSize.height,scale:1}});
+    clip:{x:0,y:0,width:metrics.cssContentSize.width,height:viewport?metrics.cssLayoutViewport.clientHeight:metrics.cssContentSize.height,scale:1}});
    await writeFile(path.join(out,name),Buffer.from(r.data,"base64"));
  }
  if(await run("document.documentElement.scrollWidth>innerWidth"))throw Error("Desktop overflow");
  await capture("desktop.png");
+ await capture("desktop-arena.png",true);
  await cdp("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
  await delay(400);
  if(await run("document.documentElement.scrollWidth>innerWidth"))throw Error("Mobile overflow");
  if(!(await run("[...document.querySelectorAll('.nav-item')].every(x=>x.getBoundingClientRect().width>30)")))throw Error("Mobile navigation unreachable");
+ await run("document.querySelector('#replay-button').click()");
  await capture("mobile.png");
+ await capture("mobile-arena.png",true);
  const contrast=await run(`(()=>{function lum(hex){let a=hex.match(/\\w\\w/g).map(x=>parseInt(x,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return .2126*a[0]+.7152*a[1]+.0722*a[2];}return (lum('a7a8b5')+.05)/(lum('14151c')+.05)})()`);
  if(contrast<4.5)throw Error("Muted text contrast failed");
- const report={passed:["character creation for all three classes","confirmed creation stays successful without collection read","failed creation preserves input and explains recovery in Portuguese","terminal battle polling stops","two-character selection","battle result and attack history","replay steps respect reduced motion","automatic replay pauses/resumes without requesting another battle","history table","batch submission","empty-name validation","desktop and mobile overflow","navigation target sizes","muted text contrast"],contrast,errors,expectedNetworkErrors,screenshots:[path.join(out,"desktop.png"),path.join(out,"mobile.png")]};
+ const report={passed:["character creation for all three classes","confirmed creation stays successful without collection read","failed creation preserves input and explains recovery in Portuguese","terminal battle polling stops","two-character selection","battle result and attack history","replay steps respect reduced motion","automatic replay pauses/resumes without requesting another battle","winner hidden until playback finishes","navigation pauses without automatic resume","same-class front/back fighters","stale response cannot replace the next battle","automatic entry and archer projectile","history table","batch submission","empty-name validation","desktop and mobile overflow","navigation target sizes","muted text contrast"],contrast,errors,expectedNetworkErrors,screenshots:[path.join(out,"desktop.png"),path.join(out,"mobile.png"),path.join(out,"desktop-battle.png"),path.join(out,"desktop-victory.png"),path.join(out,"desktop-arena.png"),path.join(out,"mobile-arena.png")]};
  await writeFile(path.join(out,"report.json"),JSON.stringify(report,null,2));
  console.log(JSON.stringify(report,null,2));
  if(errors.length)process.exitCode=1;
