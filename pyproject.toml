@@ -1,0 +1,22 @@
+[project]
+name = "battlesim"
+version = "0.1.0"
+description = "Simulador de batalhas RPG com FastAPI, RabbitMQ e workers independentes"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.34,<1",
+  "pydantic>=2.10,<3",
+  "aio-pika>=9.5,<10",
+]
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "httpx>=0.28,<1"]
+[tool.uv]
+package = false
+[tool.pytest.ini_options]
+pythonpath = ["contracts", "service-a", "service-b"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: requires the running Docker Compose stack"]
+addopts = "-m 'not integration'"
