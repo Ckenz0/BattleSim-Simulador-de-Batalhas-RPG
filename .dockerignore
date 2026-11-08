@@ -1,0 +1,11 @@
+.git
+.venv
+.env
+__pycache__
+.pytest_cache
+**/__pycache__
+*.db*
+.superpowers
+.impeccable
+PRODUCT.md
+DESIGN.md

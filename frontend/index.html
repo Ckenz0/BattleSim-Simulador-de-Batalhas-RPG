@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d0e12">
+  <meta name="description" content="Crie seus personagens de RPG e acompanhe cada turno na arena BattleSim.">
+  <title>BattleSim — Arena de batalhas RPG</title>
+  <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="swords" viewBox="0 0 24 24"><path d="m4 3 11 11-2 2L2 5V2h3l14 14M15 3h7v7M3 21l5-5m-3-3 6 6m4-8 6 6m-3-3 3 7M3 3l18 18M21 3l-7 7"/></symbol>
+    <symbol id="shield" viewBox="0 0 24 24"><path d="m12 2 8 4v6c0 5-8 10-8 10S4 17 4 12V6Z"/><path d="M12 7v9m-4-5h8"/></symbol>
+    <symbol id="book" viewBox="0 0 24 24"><path d="M3 3h7l2 2 2-2h7v16h-7l-2 2-2-2H3Z"/><path d="M12 5v16M6 7h3m-3 4h3m6-4h3m-3 4h3"/></symbol>
+    <symbol id="bow" viewBox="0 0 24 24"><path d="M4 3c19-1 18 19 18 19L4 3Zm0 0v18h18M2 22 21 3m-6 0h6v6"/></symbol>
+    <symbol id="history-icon" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7m2-5v6l4 2"/></symbol>
+    <symbol id="load-icon" viewBox="0 0 24 24"><path d="M3 20h18M6 16V9m6 7V3m6 13v-5"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+    <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  </svg>
+  <a class="skip" href="#main">Ir para o conteúdo</a>
+  <aside class="sidebar">
+    <a class="brand" href="#arena" aria-label="BattleSim, arena">
+      <svg class="brand-mark"><use href="#swords"/></svg><span>BATTLE<span class="brand-light">SIM</span></span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <button class="nav-item active" data-view="arena" aria-current="page"><svg><use href="#swords"/></svg>Arena</button>
+      <button class="nav-item" data-view="characters"><svg><use href="#shield"/></svg>Personagens <span id="roster-count" class="nav-count">0</span></button>
+      <button class="nav-item" data-view="history"><svg><use href="#history-icon"/></svg>Histórico</button>
+      <button class="nav-item" data-view="load"><svg><use href="#load-icon"/></svg>Teste de carga</button>
+    </nav>
+    <div class="sidebar-note"><span class="status-dot"></span>Simulador de batalhas RPG<small>Serviços em Nuvem · 2026</small></div>
+  </aside>
+  <div class="app">
+    <header class="topbar"><span id="view-label">Arena</span><span id="connection" class="connection">Conectando ao sistema…</span></header>
+    <main id="main" tabindex="-1">
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <section id="view-arena" class="view">
+        <div class="page-title"><div><h1>Arena de batalha</h1><p>Dois personagens. Uma disputa. Cada turno conta.</p></div><button class="button secondary" data-goto="characters"><svg><use href="#plus"/></svg>Criar personagem</button></div>
+        <div class="stats-strip" aria-label="Resumo das batalhas">
+          <div><span>Solicitadas</span><strong data-stat="total">0</strong></div>
+          <div><span>Na fila</span><strong data-stat="pending">0</strong></div>
+          <div><span>Em combate</span><strong data-stat="processing">0</strong></div>
+          <div><span>Concluídas</span><strong data-stat="completed">0</strong></div>
+        </div>
+        <div class="arena-layout">
+          <div>
+            <section class="arena-stage" aria-labelledby="duel-title">
+              <div class="section-heading"><h2 id="duel-title">Prepare o confronto</h2><span id="selection-count">0 de 2 selecionados</span></div>
+              <div class="combatants"><div id="slot-a" class="fighter-slot"></div><div class="versus" aria-label="contra"><svg><use href="#swords"/></svg><span>VS</span></div><div id="slot-b" class="fighter-slot"></div></div>
+              <div class="start-row"><p id="start-hint">Escolha dois personagens abaixo para começar.</p><button id="start-battle" class="button primary" disabled>Iniciar batalha <svg><use href="#arrow"/></svg></button></div>
+            </section>
+            <section class="roster-section" aria-labelledby="roster-title">
+              <div class="section-heading"><h2 id="roster-title">Seus combatentes</h2><span>Selecione até dois</span></div>
+              <div id="arena-roster" class="roster-grid"></div>
+            </section>
+          </div>
+          <aside class="result-panel" aria-labelledby="result-title">
+            <div class="section-heading"><h2 id="result-title">Último confronto</h2><span id="battle-status" class="badge">Aguardando</span></div>
+            <div id="battle-result" aria-live="polite"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-characters" class="view" hidden>
+        <div class="page-title"><div><h1>Personagens</h1><p>Encontre o equilíbrio entre força, resistência e agilidade.</p></div></div>
+        <div class="character-layout">
+          <form id="character-form" class="form-panel">
+            <h2>Novo combatente</h2>
+            <label for="character-name">Nome</label><input id="character-name" name="name" maxlength="60" required placeholder="Como sua lenda será chamada?" autocomplete="off">
+            <fieldset class="class-field"><legend>Classe</legend><div class="class-options">
+              <label><input type="radio" name="class_name" value="warrior" checked><span><svg><use href="#shield"/></svg>Guerreiro</span></label>
+              <label><input type="radio" name="class_name" value="mage"><span><svg><use href="#book"/></svg>Mago</span></label>
+              <label><input type="radio" name="class_name" value="archer"><span><svg><use href="#bow"/></svg>Arqueiro</span></label>
+            </div></fieldset>
+            <p class="field-note">A classe preenche os atributos iniciais. Você pode ajustá-los.</p>
+            <div class="attribute-fields">
+              <label>Vida <span>1–1.000</span><input name="hp" type="number" min="1" max="1000" step="1" value="160" required></label>
+              <label>Ataque <span>1–200</span><input name="attack" type="number" min="1" max="200" step="1" value="45" required></label>
+              <label>Defesa <span>0–150</span><input name="defense" type="number" min="0" max="150" step="1" value="40" required></label>
+              <label>Velocidade <span>1–100</span><input name="speed" type="number" min="1" max="100" step="1" value="30" required></label>
+            </div>
+            <p id="form-error" class="form-error" role="alert" hidden></p>
+            <button type="submit" class="button primary full">Criar personagem <svg><use href="#plus"/></svg></button>
+          </form>
+          <section class="collection"><div class="section-heading"><h2>Sua coleção</h2><span id="collection-count">0 personagens</span></div><div id="character-roster" class="roster-grid"></div></section>
+        </div>
+      </section>
+
+      <section id="view-history" class="view" hidden>
+        <div class="page-title"><div><h1>Histórico de batalhas</h1><p>Os confrontos, os vencedores e a história de cada disputa.</p></div><label class="filter">Mostrar<select id="history-filter"><option value="">Todas as batalhas</option><option value="pending">Na fila</option><option value="processing">Em combate</option><option value="completed">Concluídas</option><option value="failed">Com erro</option></select></label></div>
+        <div class="table-wrap"><table><caption class="sr-only">Batalhas registradas</caption><thead><tr><th>Confronto</th><th>Estado</th><th>Resultado</th><th>Turnos</th><th>Criada em</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="history-body"></tbody></table></div>
+        <div id="history-empty" class="empty" hidden><h2>Nenhuma batalha por aqui</h2><p>Os confrontos aparecerão aqui assim que você entrar na arena.</p><button class="button secondary" data-goto="arena">Ir para a arena</button></div>
+        <div class="pagination"><span id="history-range"></span><div><button id="history-prev" class="button secondary small" disabled>Anterior</button><button id="history-next" class="button secondary small" disabled>Próxima</button></div></div>
+      </section>
+
+      <section id="view-load" class="view" hidden>
+        <div class="page-title"><div><h1>Teste de carga</h1><p>Coloque a arena em movimento e acompanhe o processamento.</p></div></div>
+        <div class="load-layout">
+          <section class="form-panel"><h2>Batalhas em lote</h2><p class="muted">Use os dois combatentes selecionados na arena.</p><div id="batch-pair" class="batch-pair">Nenhum par selecionado</div><button class="text-button" data-goto="arena">Escolher combatentes <svg><use href="#arrow"/></svg></button>
+            <label for="batch-count">Quantidade de batalhas</label><select id="batch-count"><option value="10">10 batalhas</option><option value="100">100 batalhas</option><option value="500">500 batalhas</option><option value="1000">1.000 batalhas</option></select>
+            <button id="start-batch" class="button primary full" disabled>Solicitar lote <svg><use href="#arrow"/></svg></button>
+            <p id="batch-feedback" class="field-note" aria-live="polite">Os resultados chegam conforme cada batalha é processada.</p>
+          </section>
+          <section><h2>Atividade da arena</h2><dl class="load-metrics"><div><dt>Solicitadas</dt><dd data-stat="total">0</dd></div><div><dt>Na fila</dt><dd data-stat="pending">0</dd></div><div><dt>Em combate</dt><dd data-stat="processing">0</dd></div><div><dt>Concluídas</dt><dd data-stat="completed">0</dd></div><div><dt>Com erro</dt><dd data-stat="failed">0</dd></div><div><dt>Tempo médio</dt><dd id="average-time">0 ms</dd></div></dl>
+            <h2 class="workers-title">Processamento por worker</h2><div class="table-wrap"><table><caption class="sr-only">Distribuição de batalhas entre workers</caption><thead><tr><th>Worker</th><th>Concluídas</th><th>Com erro</th></tr></thead><tbody id="worker-body"></tbody></table></div><p id="workers-empty" class="muted">Nenhum resultado recebido ainda.</p>
+            <p id="unpublished" class="field-note"></p>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer>BattleSim <span>Crie. Combine. Entre na arena.</span></footer>
+  </div>
+</body>
+</html>
