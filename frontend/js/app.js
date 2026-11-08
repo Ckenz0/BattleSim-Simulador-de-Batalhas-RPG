@@ -35,7 +35,14 @@ function notify(text, error=false) {
   if(!error) noticeTimer=setTimeout(()=>{box.hidden=true;},7000);
 }
 async function api(path,options={}) {
-  const response=await fetch("/api"+path,{...options,headers:{"Content-Type":"application/json",...options.headers},signal:AbortSignal.timeout(15000)});
+  let response;
+  try {
+    response=await fetch("/api"+path,{...options,headers:{"Content-Type":"application/json",...options.headers},signal:AbortSignal.timeout(15000)});
+  } catch(error) {
+    throw new Error(error.name==="TimeoutError"?
+      "O sistema demorou para responder. Tente novamente em instantes.":
+      "Sem conexão com o sistema. Confira a conexão e tente novamente.", {cause:error});
+  }
   if(!response.ok) {
     let message="O sistema não respondeu. Tente novamente em instantes.";
     try {
@@ -49,6 +56,7 @@ async function api(path,options={}) {
 }
 function showView(view) {
   if(!["arena","characters","history","load"].includes(view)) return;
+  if(view!=="arena") state.stopReplay?.();
   state.view=view;
   $$(".view").forEach(node=>node.hidden=node.id!=="view-"+view);
   $$(".nav-item").forEach(node=>{
@@ -135,9 +143,52 @@ function resultFacts(pairs) {
   pairs.forEach(([label,value])=>{const row=el("div");row.append(el("dt","",label),el("dd","",value));list.append(row);});
   return list;
 }
+function replayPanel(battle) {
+  const root=el("section","replay-panel"), tracks=el("div","replay-tracks");
+  const bars=new Map();
+  battle.participants.forEach(character=>{
+    const track=el("div"), label=el("div","replay-label"), hp=el("span","",character.hp);
+    label.append(el("span","",character.name),hp);
+    const bar=el("progress");bar.max=character.hp;bar.value=character.hp;
+    bar.setAttribute("aria-label","Vida de "+character.name);
+    track.append(label,bar);tracks.append(track);bars.set(character.id,{bar,hp,initial:character.hp});
+  });
+  const line=el("p","replay-line","Reproduza os ataques desta batalha, turno a turno.");
+  line.setAttribute("role","status");
+  const button=el("button","button secondary full","Rever combate");button.id="replay-button";
+  const attacks=battle.result.attacks;
+  let index=0,timer=null;
+  const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function pause() {
+    if(timer!==null) clearInterval(timer);
+    timer=null;
+    button.textContent=index>0 && index<attacks.length?(reduced()?"Próximo turno":"Continuar replay"):"Rever combate";
+  }
+  function advance() {
+    const attack=attacks[index++], defender=bars.get(attack.defender_id);
+    defender.bar.value=attack.defender_hp;defender.hp.textContent=attack.defender_hp;
+    const attacker=battle.participants.find(x=>x.id===attack.attacker_id);
+    line.textContent="Turno "+attack.turn+" de "+attacks.length+" · "+attacker.name+" causou "+attack.damage+" de dano.";
+    if(index===attacks.length) pause();
+    else if(reduced()) button.textContent="Próximo turno";
+  }
+  button.addEventListener("click",()=>{
+    if(timer!==null) {pause();return;}
+    if(index===attacks.length) {
+      index=0;bars.forEach(({bar,hp,initial})=>{bar.value=initial;hp.textContent=initial;});
+    }
+    advance();
+    if(!reduced() && index<attacks.length) {
+      button.textContent="Pausar replay";timer=setInterval(advance,650);
+    }
+  });
+  state.stopReplay=pause;
+  root.append(tracks,line,button);return root;
+}
 function renderResult(battle) {
   const signature=battle?battle.id+":"+battle.status:"empty";
   if(signature===state.resultSignature) return;
+  state.stopReplay?.();state.stopReplay=null;
   state.resultSignature=signature;
   const root=$("#battle-result"), badge=$("#battle-status");
   root.replaceChildren();
@@ -160,6 +211,7 @@ function renderResult(battle) {
     el("p","",winner?"Venceu o confronto":"O limite de turnos foi atingido"));
   const duration=number.format(Math.round(battle.processing_ms || 0))+" ms";
   root.append(winnerNode,resultFacts([["Turnos",result.turns],["Dano total",number.format(Object.values(result.total_damage).reduce((a,b)=>a+b,0))],["Processamento",duration]]));
+  root.append(replayPanel(battle));
   const details=el("details"),log=el("ol","attack-log");
   result.attacks.forEach(attack=>{
     const attacker=battle.participants.find(c=>c.id===attack.attacker_id),defender=battle.participants.find(c=>c.id===attack.defender_id);
@@ -261,7 +313,9 @@ $("#character-form").addEventListener("submit",async event=>{
   state.formSubmitting=true;button.disabled=true;button.textContent="Criando…";error.hidden=true;
   try {
     const character=await api("/characters",{method:"POST",body:JSON.stringify(data)});
-    await loadCharacters();
+    // A confirmed creation is authoritative, even if a later collection read is unavailable.
+    state.characters.push(character);
+    renderCharacters();
     form.reset();setPreset("warrior");
     notify(character.name+" entrou para a sua coleção.");
   } catch(e) {error.textContent=e.message;error.hidden=false;}

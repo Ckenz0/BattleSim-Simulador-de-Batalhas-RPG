@@ -90,6 +90,8 @@ Invoke-RestMethod "$base/battles/batch" -Method Post -ContentType 'application/j
 
 Classes: `warrior`, `mage`, `archer`. Limites: nome de 1 a 60 caracteres; vida 1–1000; ataque 1–200; defesa 0–150; velocidade 1–100. Classes fornecem presets na interface; não acrescentam poderes especiais.
 
+No resultado, **Rever combate** reproduz o histórico já calculado com barras de vida, sem solicitar outra batalha. É possível pausar e continuar; com movimento reduzido ativado no sistema, cada clique avança um turno.
+
 Velocidade define o primeiro atacante; empates usam a semente. Cada turno é uma ação de ataque. Dano = máximo entre 1 e a parte inteira de ataque × variação(0,9–1,1) − defesa × 0,5, limitado à vida restante. Até 200 ações por tarefa; atingir o limite sem nocaute produz empate. O mesmo snapshot e seed reproduzem o resultado.
 
 ## Demonstração de recuperação e escala
@@ -120,6 +122,8 @@ uv run pytest -m integration -v
 ```
 
 Os testes de integração criam registros e interrompem/reiniciam **os workers e o broker deste projeto Compose**; use um ambiente de demonstração dedicado. Eles verificam o caminho pelo NGINX, retomada de pendências, indisponibilidade do broker, persistência e múltiplos workers.
+
+Verificação opcional da interface: com Node.js 22+ e um navegador Chromium já instalado, execute `node tests/browser.mjs`. No Windows, o script usa o Edge no caminho padrão; em outro ambiente, informe o executável em `BROWSER_PATH`. Ele testa os fluxos pela interface, falhas de rede após uma criação confirmada e a parada da consulta de resultados concluídos, criando registros de teste. Capturas desktop/celular e relatório ficam em `.git/ui-qa/`, fora do versionamento. Nenhum navegador ou pacote npm é instalado pelo script.
 
 Para atualizar os arquivos derivados após alterar dependências:
 
