@@ -1,0 +1,197 @@
+{
+  "$defs": {
+    "Attack": {
+      "additionalProperties": false,
+      "properties": {
+        "turn": {
+          "minimum": 1,
+          "title": "Turn",
+          "type": "integer"
+        },
+        "attacker_id": {
+          "format": "uuid",
+          "title": "Attacker Id",
+          "type": "string"
+        },
+        "defender_id": {
+          "format": "uuid",
+          "title": "Defender Id",
+          "type": "string"
+        },
+        "damage": {
+          "minimum": 1,
+          "title": "Damage",
+          "type": "integer"
+        },
+        "defender_hp": {
+          "minimum": 0,
+          "title": "Defender Hp",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "turn",
+        "attacker_id",
+        "defender_id",
+        "damage",
+        "defender_hp"
+      ],
+      "title": "Attack",
+      "type": "object"
+    },
+    "CombatResult": {
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "enum": [
+            "victory",
+            "draw"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "winner_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Winner Id"
+        },
+        "turns": {
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Turns",
+          "type": "integer"
+        },
+        "attacks": {
+          "items": {
+            "$ref": "#/$defs/Attack"
+          },
+          "maxItems": 1000,
+          "minItems": 1,
+          "title": "Attacks",
+          "type": "array"
+        },
+        "total_damage": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Total Damage",
+          "type": "object"
+        },
+        "final_hp": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Final Hp",
+          "type": "object"
+        }
+      },
+      "required": [
+        "outcome",
+        "winner_id",
+        "turns",
+        "attacks",
+        "total_damage",
+        "final_hp"
+      ],
+      "title": "CombatResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "event_id": {
+      "format": "uuid",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "battle_id": {
+      "format": "uuid",
+      "title": "Battle Id",
+      "type": "string"
+    },
+    "worker_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Worker Id",
+      "type": "string"
+    },
+    "attempt_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Attempt Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "processing",
+        "completed",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CombatResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "error": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "processing_ms": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Processing Ms"
+    }
+  },
+  "required": [
+    "battle_id",
+    "worker_id",
+    "attempt_id",
+    "status"
+  ],
+  "title": "BattleEvent",
+  "type": "object"
+}

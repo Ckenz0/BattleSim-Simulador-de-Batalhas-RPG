@@ -214,7 +214,8 @@ async function refresh() {
     $("#connection").textContent=health.broker_connected?"Sistema disponível":"Processamento temporariamente indisponível";
     $("#connection").classList.toggle("online",health.broker_connected);
     await loadHistory();
-    if(state.activeId) {
+    const terminal=state.battle && state.battle.id===state.activeId && ["completed","failed"].includes(state.battle.status);
+    if(state.activeId && !terminal) {
       try {
         state.battle=await api("/battles/"+state.activeId);
         renderResult(state.battle);
@@ -222,7 +223,7 @@ async function refresh() {
         if(e.status===404) {state.activeId=null;sessionStorage.removeItem("battle-id");renderResult(null);}
         else throw e;
       }
-    } else renderResult(null);
+    } else if(!state.activeId) renderResult(null);
   } catch(e) {
     $("#connection").textContent="Sem conexão · tentando novamente";
     $("#connection").classList.remove("online");

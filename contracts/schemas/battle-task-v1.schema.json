@@ -1,0 +1,133 @@
+{
+  "$defs": {
+    "Character": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "class_name": {
+          "$ref": "#/$defs/CharacterClass"
+        },
+        "hp": {
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Hp",
+          "type": "integer"
+        },
+        "attack": {
+          "maximum": 200,
+          "minimum": 1,
+          "title": "Attack",
+          "type": "integer"
+        },
+        "defense": {
+          "maximum": 150,
+          "minimum": 0,
+          "title": "Defense",
+          "type": "integer"
+        },
+        "speed": {
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Speed",
+          "type": "integer"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "class_name",
+        "hp",
+        "attack",
+        "defense",
+        "speed",
+        "id"
+      ],
+      "title": "Character",
+      "type": "object"
+    },
+    "CharacterClass": {
+      "enum": [
+        "warrior",
+        "mage",
+        "archer"
+      ],
+      "title": "CharacterClass",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "message_type": {
+      "const": "battle.requested",
+      "default": "battle.requested",
+      "title": "Message Type",
+      "type": "string"
+    },
+    "battle_id": {
+      "format": "uuid",
+      "title": "Battle Id",
+      "type": "string"
+    },
+    "participants": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/Character"
+        },
+        {
+          "$ref": "#/$defs/Character"
+        }
+      ],
+      "title": "Participants",
+      "type": "array"
+    },
+    "seed": {
+      "maximum": 9223372036854775807,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "request_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Request Id",
+      "type": "string"
+    },
+    "max_actions": {
+      "default": 200,
+      "maximum": 1000,
+      "minimum": 1,
+      "title": "Max Actions",
+      "type": "integer"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "battle_id",
+    "participants",
+    "seed",
+    "request_id"
+  ],
+  "title": "BattleTask",
+  "type": "object"
+}
