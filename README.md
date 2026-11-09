@@ -27,6 +27,8 @@ O cluster local configurado no Docker Desktop usa **http://localhost:8081**, com
 
 O modo de [100 batalhas concorrentes](docs/concurrent100.md) usa cinco workers com 20 slots cada. Em **Teste de carga**, selecione o lote de 100 e acompanhe os estados individuais, o progresso e os resultados. Esse perfil mantém cinco workers preparados; o ensaio de elasticidade de 1 a 5 workers continua disponível separadamente.
 
+Para a avaliação da disciplina, há um [ensaio automatizado de falha e comparação de escala](docs/requirements-experiments.md), com [resultados medidos e dados para auditoria](docs/requirements-results.md). Ele remove um worker durante 100 batalhas, verifica reentrega dos mesmos IDs e compara três rodadas com 1, 3 e 5 workers sob a mesma carga.
+
 A porta pode ser alterada em `APP_PORT`. Documentação interativa: **http://localhost:8080/api/docs**; contrato OpenAPI: **/api/openapi.json**. A interface principal e sua fonte são locais; o Swagger UI usa o CDN configurado pelo FastAPI e precisa de acesso à internet no navegador.
 
 ```bash

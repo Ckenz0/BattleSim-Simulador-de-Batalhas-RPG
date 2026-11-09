@@ -85,6 +85,6 @@ uv run pytest -m integration -v
 
 A integração altera o estado do ambiente local, cria registros de teste e restaura uma réplica do worker no final. Não execute simultaneamente com a demonstração manual.
 
-## Próxima etapa
+## Demonstrações complementares
 
-Compose mostra containers, fila, recuperação e distribuição. Kubernetes adicionará gerenciamento declarativo, substituição de Pods e escalabilidade/elasticidade. O HPA exige carga de CPU real, requests definidos e métricas disponíveis; detalhes em ../k8s/README.md.
+O Compose demonstra containers, fila, recuperação e distribuição. A implantação Kubernetes e o HPA já foram executados; veja o [roteiro local](../k8s/local-setup.md) e as [evidências](kubernetes-validation.md). Para aprofundar a avaliação, use o [ensaio de falha durante100 batalhas e comparação1/3/5workers](requirements-experiments.md). Ele complementa o perfil de100 tarefas concorrentes e preserva o teste separado de elasticidade automática.
