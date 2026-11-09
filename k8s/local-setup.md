@@ -1,5 +1,7 @@
 # Cluster local com Docker Desktop
 
+O [perfil de 100 batalhas concorrentes](../docs/concurrent100.md) usa o mesmo cluster e acesso local, com cinco workers aquecidos e 20 slots por worker. Seu HPA fixo 5/5 demonstra concorrência; o ensaio de elasticidade deste documento mantém HPA 1–5 e concorrência 1.
+
 Este procedimento usa o Kubernetes integrado do Docker Desktop no Windows, em modo **kind**, com um nó. O Compose em `8080` e seus volumes são independentes. O cluster mantém outra base de personagens/aventuras; não importa os dados do Compose.
 
 ## Preparação e implantação
@@ -19,8 +21,8 @@ Na raiz do repositório, construa as imagens atuais:
 
 ```powershell
 docker build -f service-a/Dockerfile -t battlesim-api:local .
-docker build -f service-b/Dockerfile -t battlesim-worker:local .
-docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:local .
+docker build -f service-b/Dockerfile -t battlesim-worker:concurrent100-v1 .
+docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:concurrent100-v1 .
 ```
 
 Na configuração testada, o cluster do Docker Desktop acessou essas imagens locais diretamente. Isso foi confirmado pela execução dos Pods e seus eventos. Em outro runtime, siga o mecanismo de carregamento de imagens do ambiente; não suponha que a imagem existe no nó apenas porque aparece em `docker image ls`.

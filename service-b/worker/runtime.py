@@ -3,6 +3,12 @@ import hashlib
 from time import perf_counter
 from .engine import simulate
 
+def read_concurrency(value: str) -> int:
+    concurrency = int(value)
+    if not 1 <= concurrency <= 20:
+        raise ValueError("WORKER_CONCURRENCY must be between 1 and 20")
+    return concurrency
+
 def read_cpu_iterations(value: str) -> int:
     iterations = int(value)
     if not 0 <= iterations <= 20_000_000:

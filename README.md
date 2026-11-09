@@ -25,6 +25,8 @@ Para duelos livres, crie pelo menos dois personagens em **Personagens**, selecio
 
 O cluster local configurado no Docker Desktop usa **http://localhost:8081**, com uma base separada do Compose. Consulte [como iniciar o acesso local](k8s/local-setup.md) e as [evidências de implantação, reposição e HPA](docs/kubernetes-validation.md).
 
+O modo de [100 batalhas concorrentes](docs/concurrent100.md) usa cinco workers com 20 slots cada. Em **Teste de carga**, selecione o lote de 100 e acompanhe os estados individuais, o progresso e os resultados. Esse perfil mantém cinco workers preparados; o ensaio de elasticidade de 1 a 5 workers continua disponível separadamente.
+
 A porta pode ser alterada em `APP_PORT`. Documentação interativa: **http://localhost:8080/api/docs**; contrato OpenAPI: **/api/openapi.json**. A interface principal e sua fonte são locais; o Swagger UI usa o CDN configurado pelo FastAPI e precisa de acesso à internet no navegador.
 
 ```bash
@@ -132,7 +134,7 @@ Python 3.11 e [uv](https://docs.astral.sh/uv/) são usados para desenvolvimento.
 ```bash
 uv sync --locked
 uv run pytest -q
-node --test tests/playback.test.mjs tests/adventure.test.mjs
+node --test tests/playback.test.mjs tests/adventure.test.mjs tests/batch.test.mjs
 # Com os quatro containers já em execução:
 uv run pytest -m integration -v
 ```

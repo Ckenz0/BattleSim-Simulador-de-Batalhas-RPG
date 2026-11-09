@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/arena.css">
   <link rel="stylesheet" href="/css/adventure.css">
+  <link rel="stylesheet" href="/css/batch.css">
   <script src="/js/app.js" type="module"></script>
 </head>
 <body>
@@ -106,18 +107,30 @@
       </section>
 
       <section id="view-load" class="view" hidden>
-        <div class="page-title"><div><h1>Teste de carga</h1><p>Coloque a arena em movimento e acompanhe o processamento.</p></div></div>
+        <div class="page-title"><div><h1>Teste de carga</h1><p>Envie um lote e acompanhe o estado de cada confronto.</p></div></div>
         <div class="load-layout">
           <section class="form-panel"><h2>Batalhas em lote</h2><p class="muted">Use os dois combatentes selecionados na arena.</p><div id="batch-pair" class="batch-pair">Nenhum par selecionado</div><button class="text-button" data-goto="arena">Escolher combatentes <svg><use href="#arrow"/></svg></button>
-            <label for="batch-count">Quantidade de batalhas</label><select id="batch-count"><option value="10">10 batalhas</option><option value="100">100 batalhas</option><option value="500">500 batalhas</option><option value="1000">1.000 batalhas</option></select>
+            <label for="batch-count">Quantidade de batalhas</label><select id="batch-count"><option value="10">10 batalhas</option><option value="100" selected>100 batalhas</option><option value="500">500 batalhas</option><option value="1000">1.000 batalhas</option></select>
             <button id="start-batch" class="button primary full" disabled>Solicitar lote <svg><use href="#arrow"/></svg></button>
             <p id="batch-feedback" class="field-note" aria-live="polite">Os resultados chegam conforme cada batalha é processada.</p>
           </section>
-          <section><h2>Atividade da arena</h2><dl class="load-metrics"><div><dt>Solicitadas</dt><dd data-stat="total">0</dd></div><div><dt>Na fila</dt><dd data-stat="pending">0</dd></div><div><dt>Em combate</dt><dd data-stat="processing">0</dd></div><div><dt>Concluídas</dt><dd data-stat="completed">0</dd></div><div><dt>Com erro</dt><dd data-stat="failed">0</dd></div><div><dt>Tempo médio</dt><dd id="average-time">0 ms</dd></div></dl>
-            <h2 class="workers-title">Processamento por worker</h2><div class="table-wrap"><table><caption class="sr-only">Distribuição de batalhas entre workers</caption><thead><tr><th>Worker</th><th>Concluídas</th><th>Com erro</th></tr></thead><tbody id="worker-body"></tbody></table></div><p id="workers-empty" class="muted">Nenhum resultado recebido ainda.</p>
-            <p id="unpublished" class="field-note"></p>
-          </section>
+        <section id="batch-monitor" class="batch-monitor" aria-labelledby="batch-monitor-title">
+          <div class="batch-monitor-heading"><div><h2 id="batch-monitor-title">Confrontos do lote</h2><p>Estados registrados pelo sistema. O processamento depende dos workers disponíveis.</p></div><label for="batch-recent">Lotes deste navegador<select id="batch-recent" disabled><option value="">Nenhum lote salvo</option></select></label></div>
+          <form id="batch-open" class="batch-open"><label for="batch-id-input">Abrir pelo identificador do lote</label><div><input id="batch-id-input" name="batch_id" placeholder="Identificador completo do lote" required autocomplete="off" spellcheck="false" aria-describedby="batch-open-error"><button class="button secondary" type="submit">Abrir lote</button></div><p id="batch-open-error" class="form-error" role="alert" hidden></p></form>
+          <div id="batch-empty" class="batch-empty"><h3>Cada confronto tem seu lugar</h3><p>Solicite um lote ou abra um identificador existente para acompanhar os resultados aqui.</p></div>
+          <div id="batch-content" hidden>
+            <div class="batch-identity"><span>Lote selecionado <code id="batch-selected-id"></code></span><button id="batch-refresh" class="button secondary small">Atualizar estados</button></div>
+            <p id="batch-read-error" class="batch-read-error" role="status" hidden></p>
+            <dl class="batch-counts" aria-label="Estados registrados neste lote"><div><dt>Total do lote</dt><dd data-batch-stat="total">—</dd></div><div><dt>Na fila</dt><dd data-batch-stat="pending">—</dd></div><div><dt>Em processamento</dt><dd data-batch-stat="processing">—</dd></div><div><dt>Concluídas</dt><dd data-batch-stat="completed">—</dd></div><div><dt>Com erro</dt><dd data-batch-stat="failed">—</dd></div></dl>
+            <div class="batch-progress"><label for="batch-progress">Resultados recebidos <strong id="batch-progress-label">Aguardando estados</strong></label><progress id="batch-progress" max="100"></progress><p id="batch-progress-status" role="status" aria-live="polite"></p><p id="batch-updated" class="muted"></p></div>
+            <div id="batch-grid" class="batch-grid"></div>
+            <div id="batch-pagination" class="pagination" hidden><span id="batch-range"></span><div><button id="batch-prev" class="button secondary small">Anterior</button><button id="batch-next" class="button secondary small">Próxima</button></div></div>
+          </div>
+        </section>
         </div>
+        <details class="batch-global"><summary>Atividade de todos os lotes e resultados por worker</summary><dl class="load-metrics"><div><dt>Solicitadas</dt><dd data-stat="total">0</dd></div><div><dt>Na fila</dt><dd data-stat="pending">0</dd></div><div><dt>Em combate</dt><dd data-stat="processing">0</dd></div><div><dt>Concluídas</dt><dd data-stat="completed">0</dd></div><div><dt>Com erro</dt><dd data-stat="failed">0</dd></div><div><dt>Tempo médio</dt><dd id="average-time">0 ms</dd></div></dl>
+          <h2 class="workers-title">Processamento por worker</h2><div class="table-wrap"><table><caption class="sr-only">Distribuição de batalhas entre workers</caption><thead><tr><th>Worker</th><th>Concluídas</th><th>Com erro</th></tr></thead><tbody id="worker-body"></tbody></table></div><p id="workers-empty" class="muted">Nenhum resultado recebido ainda.</p><p id="unpublished" class="field-note"></p>
+        </details>
       </section>
     </main>
     <footer>BattleSim <span>Crie. Combine. Entre na arena.</span></footer>

@@ -4,6 +4,7 @@ import {createServer} from "node:net";
 import path from "node:path";
 // Optional browser QA uses an existing Chromium browser, with no npm dependencies.
 const out=path.resolve(".git/ui-qa"); await mkdir(out,{recursive:true});
+const appBase=(process.env.BATTLESIM_BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/,'');
 const probe=createServer();await new Promise(resolve=>probe.listen(0,"127.0.0.1",resolve));
 const debugPort=probe.address().port;await new Promise(resolve=>probe.close(resolve));
 const child=spawn(process.env.BROWSER_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",[
@@ -56,7 +57,7 @@ try{
  await cdp("Page.enable");await cdp("Runtime.enable");await cdp("Log.enable");await cdp("Network.enable");await cdp("Network.setCacheDisabled",{cacheDisabled:true});
  await cdp("Emulation.setDeviceMetricsOverride",{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
  await cdp("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"reduce"}]});
- await cdp("Page.navigate",{url:"http://127.0.0.1:8080/"});
+ await cdp("Page.navigate",{url:appBase+'/'});
  await check("document.querySelector('#connection')?.textContent === 'Sistema disponível'");
  // Complete a real campaign through HTTP -> outbox -> RabbitMQ -> worker -> UI.
  await run("document.querySelector('[data-view=adventure]').click()");
@@ -104,14 +105,14 @@ try{
  // A confirmed POST must remain successful even when a subsequent collection GET fails.
  const regressionName="Runa "+Date.now().toString(36).slice(-5);
  const createdBeforeRegression=createdResponses;
- await cdp("Fetch.enable",{patterns:[{urlPattern:"http://127.0.0.1:8080/api/characters*",requestStage:"Request"}]});
+ await cdp("Fetch.enable",{patterns:[{urlPattern:appBase+'/api/characters*',requestStage:"Request"}]});
  await run(`document.querySelector('[data-view="characters"]').click();document.querySelector('#character-name').value=${JSON.stringify(regressionName)};document.querySelector('#character-form').requestSubmit()`);
  await until(async()=>createdResponses>createdBeforeRegression && await run("!document.querySelector('#character-form [type=submit]').disabled"));
  const creationKept=await run(`document.querySelector('#character-name').value==='' && document.querySelector('#form-error').hidden && [...document.querySelectorAll('#character-roster h3')].some(x=>x.textContent===${JSON.stringify(regressionName)})`);
  await cdp("Fetch.disable");
  if(!creationKept)throw Error("A confirmed character creation was reported as failed after collection refresh");
  blockedMethod='POST';
- await cdp("Fetch.enable",{patterns:[{urlPattern:"http://127.0.0.1:8080/api/characters*",requestStage:"Request"}]});
+ await cdp("Fetch.enable",{patterns:[{urlPattern:appBase+'/api/characters*',requestStage:"Request"}]});
  await run("document.querySelector('#character-name').value='Teste offline';document.querySelector('#character-form').requestSubmit()");
  await check("!document.querySelector('#character-form [type=submit]').disabled");
  const recoverable=await run("document.querySelector('#character-name').value==='Teste offline' && !document.querySelector('#form-error').hidden && document.querySelector('#form-error').textContent.toLowerCase().includes('conexão')");
@@ -173,7 +174,7 @@ try{
  await cdp("Emulation.setEmulatedMedia",{features:[{name:"prefers-reduced-motion",value:"reduce"}]});
  // An old delayed detail response must not replace the next accepted battle.
  holdDetails=true;heldDetail=null;
- await cdp('Fetch.enable',{patterns:[{urlPattern:'http://127.0.0.1:8080/api/battles/*',requestStage:'Request'}]});
+ await cdp('Fetch.enable',{patterns:[{urlPattern:appBase+'/api/battles/*',requestStage:'Request'}]});
  await run("document.querySelector('#start-battle').click()");
  await until(()=>heldDetail);
  await until(()=>run("!document.querySelector('#start-battle').disabled"),2000);

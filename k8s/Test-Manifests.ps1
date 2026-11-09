@@ -3,7 +3,15 @@ $ErrorActionPreference = 'Stop'
 function Assert-Manifest([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw $Message }
 }
-foreach ($path in @($PSScriptRoot, (Join-Path $PSScriptRoot 'overlays/hpa-demo'))) {
+$profiles = @(
+    @{ Path = $PSScriptRoot; Iterations = '0'; Concurrency = '1'; Min = 1; Grace = 35; Host = 'battlesim.local' },
+    @{ Path = (Join-Path $PSScriptRoot 'overlays/hpa-demo'); Iterations = '5000000'; Concurrency = '1'; Min = 1; Grace = 35; Host = 'battlesim.local' },
+    @{ Path = (Join-Path $PSScriptRoot 'overlays/docker-desktop'); Iterations = '0'; Concurrency = '1'; Min = 1; Grace = 35; Host = 'localhost' },
+    @{ Path = (Join-Path $PSScriptRoot 'overlays/docker-desktop-hpa'); Iterations = '5000000'; Concurrency = '1'; Min = 1; Grace = 35; Host = 'localhost' },
+    @{ Path = (Join-Path $PSScriptRoot 'overlays/docker-desktop-concurrent100'); Iterations = '10000000'; Concurrency = '20'; Min = 5; Grace = 75; Host = 'localhost' }
+)
+foreach ($profile in $profiles) {
+    $path = $profile.Path
     $rendered = (& kubectl kustomize $path) -join "`n"
     Assert-Manifest ($LASTEXITCODE -eq 0) "Kustomize falhou: $path"
     $objects = @{}
@@ -27,6 +35,9 @@ foreach ($path in @($PSScriptRoot, (Join-Path $PSScriptRoot 'overlays/hpa-demo')
     Assert-Manifest ($worker -notmatch '(?m)^  replicas:') 'Deployment worker nao deve resetar o HPA.'
     Assert-Manifest ($worker -notmatch 'httpGet:|livenessProbe:|readinessProbe:') 'Worker nao possui endpoint de saude.'
     Assert-Manifest ($worker -match 'cpu: 250m') 'CPU request do worker incorreto.'
+    Assert-Manifest ($worker -match 'limits:\s+cpu: "1"\s+memory: 256Mi') 'Limites do worker incorretos.'
+    Assert-Manifest ($worker -match "name: WORKER_CONCURRENCY\s+value: `"$($profile.Concurrency)`"") 'Concorrencia do worker incorreta.'
+    Assert-Manifest ($worker -match "terminationGracePeriodSeconds: $($profile.Grace)\s") 'Prazo de encerramento do worker incorreto.'
     foreach ($workload in @($api, $worker, $objects['Deployment/frontend'], $objects['StatefulSet/rabbitmq'])) {
         Assert-Manifest ([bool]$workload) 'Workload ausente.'
         Assert-Manifest ($workload -match 'requests:' -and $workload -match 'limits:') 'Workload sem requests/limits.'
@@ -37,14 +48,15 @@ foreach ($path in @($PSScriptRoot, (Join-Path $PSScriptRoot 'overlays/hpa-demo')
     Assert-Manifest ($objects['Service/rabbitmq'] -match 'clusterIP: None') 'Service headless RabbitMQ ausente.'
     $hpa = $objects['HorizontalPodAutoscaler/service-b']
     Assert-Manifest ($hpa -match 'apiVersion: autoscaling/v2') 'HPA precisa de autoscaling/v2.'
-    Assert-Manifest ($hpa -match 'minReplicas: 1' -and $hpa -match 'maxReplicas: 5') 'Limites HPA incorretos.'
+    Assert-Manifest ($hpa -match "minReplicas: $($profile.Min)\s" -and $hpa -match 'maxReplicas: 5\s') 'Limites HPA incorretos.'
     Assert-Manifest ($hpa -match 'name: cpu' -and $hpa -match 'averageUtilization: 60') 'Metrica CPU HPA incorreta.'
     Assert-Manifest ($objects['Ingress/battlesim'] -match 'ingressClassName: nginx' -and $objects['Ingress/battlesim'] -match 'name: frontend') 'Ingress deve encaminhar para frontend.'
+    Assert-Manifest ($objects['Ingress/battlesim'] -match "host: $([regex]::Escape($profile.Host))\s") 'Host Ingress incorreto.'
     $config = @($objects.Keys | Where-Object { $_ -like 'ConfigMap/battlesim-config-*' })
     Assert-Manifest ($config.Count -eq 1) 'ConfigMap gerado ausente.'
     $configName = $config[0].Substring('ConfigMap/'.Length)
     Assert-Manifest ($api.Contains("name: $configName") -and $worker.Contains("name: $configName")) 'Referencias ConfigMap nao foram reescritas.'
-    $iterations = if ($path -eq $PSScriptRoot) { '0' } else { '5000000' }
+    $iterations = $profile.Iterations
     Assert-Manifest ($objects[$config[0]] -match "WORKER_CPU_ITERATIONS: `"$iterations`"") 'Carga CPU incorreta.'
     Write-Output "PASS: $path (12 objetos, guardrails estaticos)."
 }

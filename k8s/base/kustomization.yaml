@@ -17,6 +17,6 @@ images:
   - name: battlesim-api
     newTag: local
   - name: battlesim-worker
-    newTag: local
+    newTag: concurrent100-v1
   - name: battlesim-frontend
-    newTag: local
+    newTag: concurrent100-v1

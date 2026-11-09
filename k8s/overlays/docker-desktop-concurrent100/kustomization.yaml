@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../docker-desktop-hpa
+configMapGenerator:
+  - name: battlesim-config
+    behavior: merge
+    literals:
+      # Keep the real CPU work visible long enough to inspect all 100 slots.
+      - WORKER_CPU_ITERATIONS=10000000
+images:
+  - name: battlesim-worker
+    newTag: concurrent100-v1
+  - name: battlesim-frontend
+    newTag: concurrent100-v1
+patches:
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: service-b
+    patch: |-
+      # Fixed warm capacity for the concurrency demo, not an elasticity test.
+      - op: replace
+        path: /spec/minReplicas
+        value: 5
+      - op: replace
+        path: /spec/maxReplicas
+        value: 5
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: service-b
+      spec:
+        template:
+          spec:
+            terminationGracePeriodSeconds: 75
+            containers:
+              - name: worker
+                env:
+                  - name: WORKER_CONCURRENCY
+                    value: "20"

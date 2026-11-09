@@ -1,5 +1,6 @@
 import {PixelArena,createSprite} from "./arena.mjs";
 import {AdventureView} from "./adventure.mjs";
+import {BatchView} from "./batch-view.mjs";
 "use strict";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -21,6 +22,7 @@ const adventure=new AdventureView($('#adventure-root'),{api,notify,onCharacterCh
     state.battle=battle;state.activeId=battle.id;state.watchBattleId=battle.id;
     sessionStorage.setItem('battle-id',battle.id);renderResult(battle,{force:true});showView('arena');void refresh();
   }});
+const batchView=new BatchView($('#batch-monitor'),{api,storage:(()=>{try{return localStorage;}catch{return null;}})()});
 function el(tag, className, text) {
   const node=document.createElement(tag);
   if(className) node.className=className;
@@ -77,6 +79,7 @@ function showView(view) {
   $("#view-label").textContent={adventure:'Aventura',arena:"Arena",characters:"Personagens",history:"Histórico",load:"Teste de carga"}[view];
   history.replaceState(null,"","#"+view);
   if(view==="history") loadHistory().catch(e=>notify(e.message,true));
+  if(view==="load") void batchView.refresh();
   $("#main").focus({preventScroll:true});
 }
 function emptyState(title,description,action=false) {
@@ -284,9 +287,10 @@ async function startBatch() {
   state.batchSubmitting=true;renderSlots();const button=$("#start-batch");button.textContent="Enviando lote…";
   try {
     const result=await api("/battles/batch",{method:"POST",body:JSON.stringify({character_a_id:state.selected[0],character_b_id:state.selected[1],count:Number($("#batch-count").value)})});
-    $("#batch-feedback").textContent=number.format(result.count)+" batalhas solicitadas. Acompanhe a evolução nos indicadores de atividade.";
+    $("#batch-feedback").textContent=number.format(result.count)+" batalhas solicitadas. Acompanhe os confrontos do lote selecionado.";
     notify("Lote de "+number.format(result.count)+" batalhas registrado.");
-    await refresh();
+    // A confirmed POST stays successful even when a later monitor read fails.
+    batchView.accept(result);void refresh();
   } catch(e) {notify(e.message,true);}
   finally {state.batchSubmitting=false;button.replaceChildren(document.createTextNode("Solicitar lote "),icon("arrow"));renderSlots();}
 }
@@ -313,7 +317,7 @@ function setPreset(className) {
 }
 $$('[name="class_name"]').forEach(radio=>radio.addEventListener("change",()=>setPreset(radio.value)));
 document.addEventListener("click",async event=>{
-  const button=event.target.closest("button");
+  const button=event.target.closest("button, a[data-detail]");
   if(!button) return;
   if(button.dataset.view) showView(button.dataset.view);
   if(button.dataset.goto) showView(button.dataset.goto);
@@ -327,6 +331,7 @@ document.addEventListener("click",async event=>{
     showView("arena");
   }
   if(button.dataset.detail) {
+    event.preventDefault();
     try {
       const requestedId=button.dataset.detail;state.activeId=requestedId;
       const updated=await api("/battles/"+requestedId);
@@ -342,7 +347,7 @@ $("#history-filter").addEventListener("change",event=>{state.filter=event.target
 $("#history-prev").addEventListener("click",()=>{state.offset=Math.max(0,state.offset-15);loadHistory().catch(e=>notify(e.message,true));});
 $("#history-next").addEventListener("click",()=>{state.offset+=15;loadHistory().catch(e=>notify(e.message,true));});
 $(".brand").addEventListener("click",event=>{event.preventDefault();showView("arena");});
-async function poll() {await refresh();if(adventure.visible)await adventure.refresh().catch(()=>{});setTimeout(poll,document.hidden?8000:2000);}
+async function poll() {await Promise.all([refresh(),batchView.refresh()]);if(adventure.visible)await adventure.refresh().catch(()=>{});setTimeout(poll,document.hidden?8000:2000);}
 async function init() {
   renderResult(null);renderSlots();
   $$(".class-options label").forEach(label=>{const span=$("span",label);$("svg",span)?.remove();span.prepend(createSprite($("input",label).value));});

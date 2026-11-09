@@ -26,7 +26,7 @@ Modelos Pydantic compartilhados são a autoridade dos contratos. Esquemas gerado
 
 Filas duráveis, mensagens persistentes, publicação obrigatória com confirmação e ACK manual. Ambas as filas de trabalho encaminham rejeições para battles.dead.v1 pelo exchange padrão. Uma única instância de RabbitMQ é usada no MVP.
 
-O worker tem prefetch 1 e executa uma batalha por vez. Instâncias diferentes competem pela mesma fila. Eventos processing e terminais percorrem o RabbitMQ; não há comunicação direta A/B.
+O worker usa `WORKER_CONCURRENCY` entre 1 e 20, com padrão 1. O mesmo limite configura o prefetch do RabbitMQ, um semáforo e o pool de threads de execução; tarefas adicionais aguardam capacidade. Instâncias diferentes competem pela mesma fila. Eventos processing e terminais percorrem o RabbitMQ; não há comunicação direta A/B. O [perfil de 100 batalhas](concurrent100.md) prepara cinco workers com 20 slots cada, compartilhando CPU. Os estados recebidos pela API podem atrasar em relação ao processamento real.
 
 Resultado contém outcome, winner_id, turns, ataques, dano por combatente e vida final. Snapshot e seed estão na batalha original. processing_ms do evento inclui a simulação e a carga artificial de CPU; não inclui espera em fila. Média apresentada considera somente batalhas concluídas.
 

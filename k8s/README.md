@@ -1,5 +1,7 @@
 # Kubernetes e HPA
 
+Para demonstrar 100 batalhas concorrentes, use o [perfil local dedicado 5 × 20](../docs/concurrent100.md). Ele fixa cinco workers antes da carga; o ensaio de elasticidade abaixo continua separado, com HPA de 1 a 5 e um slot por worker.
+
 Para o cluster integrado do Docker Desktop nesta máquina, veja o [procedimento local](local-setup.md), com versões fixadas dos addons, acesso em `http://localhost:8081` e overlays próprios. O roteiro genérico abaixo continua aplicável a outros clusters.
 
 Esta implantação é independente do Compose: não importa seus volumes nem altera seus containers. Execute os comandos PowerShell na raiz do repositório. Os procedimentos abaixo são um roteiro genérico; os [resultados observados no cluster local](../docs/kubernetes-validation.md) registram a execução de 8 de novembro de 2026.
@@ -9,7 +11,7 @@ Esta implantação é independente do Compose: não importa seus volumes nem alt
 | Recurso | Função | Persistência / escala |
 | --- | --- | --- |
 | `Deployment/service-a` + Service interno | API, SQLite, outbox e resultados | PVC `api-data` de 1 GiB, **uma réplica**, um processo Uvicorn, atualização `Recreate` |
-| `Deployment/service-b` | Consumidores independentes, prefetch 1 | Sem DB/API/Service HTTP; HPA de 1 a 5 réplicas |
+| `Deployment/service-b` | Consumidores independentes, concorrência/prefetch padrão 1 | Sem DB/API/Service HTTP; HPA normal de 1 a 5 réplicas |
 | `StatefulSet/rabbitmq` + Service headless interno | Broker AMQP e filas duráveis | Uma réplica, PVC `data-rabbitmq-0` de 1 GiB |
 | `Deployment/frontend` + Service interno | Imagem NGINX com arquivos de `frontend/` e proxy `/api/` | Uma réplica |
 | `Ingress/battlesim` | Encaminha `battlesim.local/` ao Service frontend | Requer NGINX Ingress Controller instalado |
@@ -18,7 +20,7 @@ API com SQLite e RabbitMQ de um nó **não são altamente disponíveis**. Recrea
 
 Todos os containers têm requests/limits. CPU do worker: request `250m`, limit `1`; alvo HPA `60%` significa aproximadamente **150m por Pod**, relativo ao request. Réplicas e recursos precisam caber nos nós. API usa `/api/health/live` e `/api/health/ready`; falha do broker tira a API de readiness sem reiniciá-la por liveness. RabbitMQ usa diagnósticos locais e frontend verifica os arquivos estáticos. Worker não oferece endpoint/heartbeat: não há probe HTTP fictícia ou teste de PID que se passe por saúde do consumidor. `Ready` desse Pod indica processo iniciado; confirme conexão em `worker_ready` e nos consumidores da fila. O processo reconecta com backoff e Kubernetes reinicia processos que saem; consumidor travado exige diagnóstico operacional.
 
-Worker recebe SIGTERM e tem até 25 s para concluir trabalho; `terminationGracePeriodSeconds: 35` dá margem. API tem 35 s, RabbitMQ 60 s e NGINX 30 s com `SIGQUIT`. Mensagens não confirmadas voltam à fila; resultados são idempotentes no serviço A.
+Worker recebe SIGTERM e espera trabalho ativo por até 25 s; `terminationGracePeriodSeconds: 35` dá margem nos perfis normais. O perfil de 100 concorrentes usa 75 s externos; threads CPU em execução não são canceladas imediatamente pelo prazo interno. API tem 35 s, RabbitMQ 60 s e NGINX 30 s com `SIGQUIT`. Mensagens não confirmadas voltam à fila; resultados são idempotentes no serviço A.
 
 ## Pré-requisitos
 
@@ -42,8 +44,8 @@ Os manifests de `base/` pressupõem um cluster, um controller e Metrics Server j
 
 ```powershell
 docker build -f service-a/Dockerfile -t battlesim-api:local .
-docker build -f service-b/Dockerfile -t battlesim-worker:local .
-docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:local .
+docker build -f service-b/Dockerfile -t battlesim-worker:concurrent100-v1 .
+docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:concurrent100-v1 .
 ```
 
 O frontend inclui o conteúdo atual de `frontend/`; reconstrua após mudanças. Os Dockerfiles API/worker são os mesmos do Compose. `imagePullPolicy: IfNotPresent` permite imagens locais, mas o runtime **do cluster** deve enxergá-las. Docker Desktop pode usar armazenamento distinto do daemon Docker conforme a configuração. Confira o runtime; em outros clusters, carregue as imagens pelo mecanismo do cluster ou publique em seu registry e ajuste `images` em `k8s/base/kustomization.yaml`. Nenhuma publicação é feita aqui. Prefira tags novas por versão; se reutilizar `:local`, assegure que os nós receberam a imagem nova e reinicie o Deployment correspondente. Não remova PVCs para atualizar imagens.
@@ -159,11 +161,12 @@ kubectl -n battlesim rollout status deployment/service-b --timeout=180s
 ```powershell
 kubectl kustomize k8s
 kubectl kustomize k8s/overlays/hpa-demo
+kubectl kustomize k8s/overlays/docker-desktop-concurrent100
 & ./k8s/Test-Manifests.ps1
 git diff --check -- k8s
 ```
 
-Os dois renders produzem 12 recursos cada. O script verifica namespace, CPU, referências do ConfigMap com hash, ausência de Secret versionado, API uma réplica/Recreate/PVC, recursos, probes existentes, HPA e Ingress; também verifica sintaxe PowerShell e guardrails MIME/trace/CSP. Isso **não** valida todo o schema Kubernetes, sintaxe completa NGINX ou disponibilidade de storage, métricas e imagens. Complete com `--dry-run=server`, build de imagens e experimentos reais no cluster escolhido. Os experimentos já executados nesta máquina estão em [docs/kubernetes-validation.md](../docs/kubernetes-validation.md).
+O script renderiza a base e os quatro overlays de aplicação, com 12 recursos cada. Verifica namespace, CPU, concorrência por perfil, prazo de encerramento, referências do ConfigMap com hash, ausência de Secret versionado, API uma réplica/Recreate/PVC, recursos, probes existentes, HPA e Ingress; também verifica sintaxe PowerShell e guardrails MIME/trace/CSP. Isso **não** valida todo o schema Kubernetes, sintaxe completa NGINX ou disponibilidade de storage, métricas e imagens. Complete com `--dry-run=server`, build de imagens e experimentos reais no cluster escolhido. Os experimentos já executados nesta máquina estão em [docs/kubernetes-validation.md](../docs/kubernetes-validation.md).
 
 Não execute `kubectl delete -k k8s`, remova namespace ou PVCs para repetir experimentos: isso pode eliminar dados. Substitua somente Pods worker nos testes de reposição. Backup, restore e remoção de dados exigem procedimento próprio.
 

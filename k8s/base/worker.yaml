@@ -32,6 +32,8 @@ spec:
             - configMapRef:
                 name: battlesim-config
           env:
+            - name: WORKER_CONCURRENCY
+              value: "1"
             - name: RABBITMQ_USER
               valueFrom:
                 secretKeyRef:
