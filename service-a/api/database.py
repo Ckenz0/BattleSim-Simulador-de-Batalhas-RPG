@@ -9,6 +9,7 @@ from uuid import uuid4
 from battle_contracts.models import BattleEvent, BattleTask, Character, CharacterCreate, utcnow
 from .adventures import initialize_schema, apply_result
 from .persistence import insert_battle
+from .tracing import initialize_trace, record_trace, read_trace
 
 class Database:
     def __init__(self, path):
@@ -37,6 +38,7 @@ class Database:
                 CREATE INDEX IF NOT EXISTS battles_status ON battles(status);
                 CREATE INDEX IF NOT EXISTS outbox_unpublished ON outbox(published_at);
             """)
+            initialize_trace(db)
             initialize_schema(db)
 
     @contextmanager
@@ -105,8 +107,16 @@ class Database:
 
     def mark_published(self, battle_id):
         with self.connection() as db:
-            db.execute("UPDATE outbox SET published_at=? WHERE battle_id=? AND published_at IS NULL",
-                       (utcnow().isoformat(), str(battle_id)))
+            now = utcnow().isoformat()
+            changed = db.execute("UPDATE outbox SET published_at=? WHERE battle_id=? AND published_at IS NULL",
+                                 (now, str(battle_id)))
+            if changed.rowcount:
+                record_trace(db, battle_id, 'published:' + str(battle_id), 'published', now, now)
+
+    def battle_trace(self, battle_id, limit=100, offset=0):
+        with self.connection() as db:
+            db.execute('BEGIN')
+            return read_trace(db, battle_id, limit, offset)
 
     @staticmethod
     def battle_from_row(row, detail=True):
@@ -153,14 +163,26 @@ class Database:
         with self.connection() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT status FROM battles WHERE id=?", (str(event.battle_id),)).fetchone()
-            if row is None or row["status"] in ("completed", "failed"):
+            if row is None:
+                return False
+            now = utcnow().isoformat()
+            key = 'event:' + str(event.event_id)
+            duplicate = db.execute("""UPDATE battle_trace SET deliveries=deliveries+1,last_received_at=?
+                WHERE event_key=? AND battle_id=?""", (now,key,str(event.battle_id)))
+            if duplicate.rowcount:
                 return False
             inserted = db.execute("INSERT OR IGNORE INTO battle_events VALUES (?,?)",
                                   (str(event.event_id),str(event.battle_id)))
-            if inserted.rowcount == 0:
+            terminal = row['status'] in ('completed','failed')
+            applied = inserted.rowcount > 0 and not terminal
+            record_trace(db, event.battle_id, key, event.status, event.occurred_at.isoformat(), now,
+                         event_id=str(event.event_id),worker_id=event.worker_id,attempt_id=event.attempt_id,
+                         applied=applied,reason='already_terminal' if terminal else
+                         ('duplicate_before_tracing' if not applied else None))
+            if not applied:
                 return False
             db.execute("""UPDATE battles SET status=?,updated_at=?,worker_id=?,result_json=?,error=?,processing_ms=?
-                          WHERE id=?""", (event.status,utcnow().isoformat(),event.worker_id,
+                          WHERE id=?""", (event.status,now,event.worker_id,
                           event.result.model_dump_json() if event.result else None,
                           event.error,event.processing_ms,str(event.battle_id)))
             apply_result(db, event)

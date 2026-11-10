@@ -1,6 +1,7 @@
 import {PixelArena,createSprite} from "./arena.mjs";
 import {AdventureView} from "./adventure.mjs";
 import {BatchView} from "./batch-view.mjs";
+import {ControlView,TraceView} from "./control-view.mjs";
 "use strict";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -23,6 +24,8 @@ const adventure=new AdventureView($('#adventure-root'),{api,notify,onCharacterCh
     sessionStorage.setItem('battle-id',battle.id);renderResult(battle,{force:true});showView('arena');void refresh();
   }});
 const batchView=new BatchView($('#batch-monitor'),{api,storage:(()=>{try{return localStorage;}catch{return null;}})()});
+const controlView=new ControlView($('#control-root'),{api});
+const traceView=new TraceView($('#trace-root'),{api});
 function el(tag, className, text) {
   const node=document.createElement(tag);
   if(className) node.className=className;
@@ -48,7 +51,9 @@ function notify(text, error=false) {
 async function api(path,options={}) {
   let response;
   try {
-    response=await fetch("/api"+path,{...options,headers:{"Content-Type":"application/json",...options.headers},signal:AbortSignal.timeout(15000)});
+    const timeout=AbortSignal.timeout(15000);
+    const signal=options.signal?AbortSignal.any([options.signal,timeout]):timeout;
+    response=await fetch("/api"+path,{...options,headers:{"Content-Type":"application/json",...options.headers},signal});
   } catch(error) {
     throw new Error(error.name==="TimeoutError"?
       "O sistema demorou para responder. Tente novamente em instantes.":
@@ -66,9 +71,11 @@ async function api(path,options={}) {
   return response.json();
 }
 function showView(view) {
-  if(!["adventure","arena","characters","history","load"].includes(view)) return;
+  if(!["adventure","arena","characters","history","load","control","trace"].includes(view)) return;
   arena.setVisible(view==="arena");
   adventure.setVisible(view==='adventure');
+  controlView.setVisible(view==='control');
+  traceView.setVisible(view==='trace');
   state.view=view;
   $$(".view").forEach(node=>node.hidden=node.id!=="view-"+view);
   $$(".nav-item").forEach(node=>{
@@ -76,7 +83,7 @@ function showView(view) {
     node.classList.toggle("active",active);
     if(active) node.setAttribute("aria-current","page"); else node.removeAttribute("aria-current");
   });
-  $("#view-label").textContent={adventure:'Aventura',arena:"Arena",characters:"Personagens",history:"Histórico",load:"Teste de carga"}[view];
+  $("#view-label").textContent={adventure:'Aventura',arena:"Arena",characters:"Personagens",history:"Histórico",load:"Teste de carga",control:"Sala de controle",trace:"Percurso da batalha"}[view];
   history.replaceState(null,"","#"+view);
   if(view==="history") loadHistory().catch(e=>notify(e.message,true));
   if(view==="load") void batchView.refresh();
@@ -160,6 +167,10 @@ function resultFacts(pairs) {
 }
 function renderBattleWatching(battle) {
   $("#battle-result").replaceChildren(emptyState("Acompanhe o confronto","Assista aos golpes na arena. O resultado aparece ao fim da batalha."));
+  appendTraceAction($("#battle-result"),battle.id);
+}
+function appendTraceAction(root,id) {
+  const button=el('button','button secondary small trace-summary-link','Ver percurso da batalha');button.dataset.trace=id;root.append(button);
 }
 function renderBattleSummary(battle) {
   const root=$("#battle-result");root.replaceChildren();
@@ -175,6 +186,7 @@ function renderBattleSummary(battle) {
     const row=el("li");row.append(el("strong","","Turno "+attack.turn+" · "+attacker.name),el("div","",attack.damage+" de dano em "+defender.name+" · "+attack.defender_hp+" de vida restante"));log.append(row);
   });
   details.append(el("summary","","Ver histórico dos ataques"),log);root.append(details);
+  appendTraceAction(root,battle.id);
   if(battle.adventure){const back=el('button','button primary full','Continuar aventura');back.addEventListener('click',()=>{showView('adventure');void adventure.open(battle.adventure.id).catch(e=>notify(e.message,true));});root.append(back);}
 }
 
@@ -192,11 +204,12 @@ function renderResult(battle,{force=false}={}) {
     const node=el("div","empty small-empty");
     node.append(el("div","processing-mark"),el("h2","",battle.status==="pending"?"Confronto na fila":"Batalha em andamento"),
       el("p","",battle.status==="pending"?"Seu pedido está salvo. O resultado aparecerá aqui quando o processamento terminar.":"Os combatentes estão na arena. Você pode continuar usando o simulador."));
-    root.append(node);return;
+    root.append(node);appendTraceAction(root,battle.id);return;
   }
   if(battle.status==="failed") {
     arena.failure(battle);
     root.append(emptyState("O confronto não terminou","Houve uma falha no processamento. Você pode solicitar uma nova batalha."));
+    appendTraceAction(root,battle.id);
     return;
   }
   const fresh=state.watchBattleId===battle.id;
@@ -229,7 +242,7 @@ async function loadHistory() {
       const winner=battle.participants.find(c=>c.id===battle.result?.winner_id);
       const result=battle.result?(winner?winner.name:"Empate"):"—";
       const date=new Date(battle.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-      const action=el("td"),button=el("button","button secondary small","Ver");button.dataset.detail=battle.id;button.setAttribute("aria-label","Ver confronto entre "+battle.participants.map(c=>c.name).join(" e "));action.append(button);
+      const action=el("td"),actions=el('div','history-actions'),button=el("button","button secondary small","Ver");button.dataset.detail=battle.id;button.setAttribute("aria-label","Ver confronto entre "+battle.participants.map(c=>c.name).join(" e "));actions.append(button);const trace=el('button','button secondary small','Percurso');trace.dataset.trace=battle.id;trace.setAttribute('aria-label','Ver percurso da batalha '+battle.id);actions.append(trace);action.append(actions);
       row.append(participants,status,el("td","",result),el("td","",battle.result?.turns || "—"),el("td","",date),action);
       return row;
     }));
@@ -317,10 +330,11 @@ function setPreset(className) {
 }
 $$('[name="class_name"]').forEach(radio=>radio.addEventListener("change",()=>setPreset(radio.value)));
 document.addEventListener("click",async event=>{
-  const button=event.target.closest("button, a[data-detail]");
+  const button=event.target.closest("button, a[data-detail], a[data-trace]");
   if(!button) return;
   if(button.dataset.view) showView(button.dataset.view);
   if(button.dataset.goto) showView(button.dataset.goto);
+  if(button.dataset.trace) {event.preventDefault();traceView.open(button.dataset.trace);showView('trace');}
   if(button.dataset.select) toggleCharacter(button.dataset.select);
   if(button.dataset.remove) toggleCharacter(button.dataset.remove);
   if(button.dataset.take) {

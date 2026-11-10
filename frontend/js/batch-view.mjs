@@ -88,6 +88,7 @@ export class BatchView {
     const link=node('a','batch-card-link',battle.status==='completed'?'Ver resultado':'Ver confronto');
     link.href='#arena';link.dataset.detail=battle.id;link.dataset.batchDetail=battle.id;
     link.setAttribute('aria-label',(battle.status==='completed'?'Ver resultado':'Ver confronto')+' '+index+' · '+battle.id.slice(0,8));
-    card.append(head,pair,result,link);return card;
+    const trace=node('a','batch-trace-link','Ver percurso');trace.href='#trace';trace.dataset.trace=battle.id;trace.setAttribute('aria-label','Ver percurso do confronto '+index);
+    card.append(head,pair,result,link,trace);return card;
   }
 }

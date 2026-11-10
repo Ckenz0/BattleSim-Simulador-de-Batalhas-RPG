@@ -20,9 +20,9 @@ O nó deve estar `Ready`. É necessária uma StorageClass padrão; nesta máquin
 Na raiz do repositório, construa as imagens atuais:
 
 ```powershell
-docker build -f service-a/Dockerfile -t battlesim-api:local .
+docker build -f service-a/Dockerfile -t battlesim-api:control-v1 .
 docker build -f service-b/Dockerfile -t battlesim-worker:concurrent100-v1 .
-docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:concurrent100-v1 .
+docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:control-v1 .
 ```
 
 Na configuração testada, o cluster do Docker Desktop acessou essas imagens locais diretamente. Isso foi confirmado pela execução dos Pods e seus eventos. Em outro runtime, siga o mecanismo de carregamento de imagens do ambiente; não suponha que a imagem existe no nó apenas porque aparece em `docker image ls`.

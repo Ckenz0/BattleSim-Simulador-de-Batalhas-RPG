@@ -8,15 +8,18 @@ resources:
   - rabbitmq.yaml
   - frontend.yaml
   - worker-hpa.yaml
+  - observer-rbac.yaml
 configMapGenerator:
   - name: battlesim-config
     literals:
       - DATABASE_PATH=/data/battlesim.db
       - WORKER_CPU_ITERATIONS=0
+      - RABBITMQ_METRICS_URL=http://rabbitmq:15692/metrics/per-object
+      - CONTROL_WORKER_CONCURRENCY=1
 images:
   - name: battlesim-api
-    newTag: local
+    newTag: control-v1
   - name: battlesim-worker
     newTag: concurrent100-v1
   - name: battlesim-frontend
-    newTag: concurrent100-v1
+    newTag: control-v1

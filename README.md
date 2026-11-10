@@ -27,6 +27,8 @@ O cluster local configurado no Docker Desktop usa **http://localhost:8081**, com
 
 O modo de [100 batalhas concorrentes](docs/concurrent100.md) usa cinco workers com 20 slots cada. Em **Teste de carga**, selecione o lote de 100 e acompanhe os estados individuais, o progresso e os resultados. Esse perfil mantém cinco workers preparados; o ensaio de elasticidade de 1 a 5 workers continua disponível separadamente.
 
+Em **Sala de controle**, consulte as filas reais do RabbitMQ, os estados da aplicação e, no Kubernetes, workers, CPU, memória e HPA. **Percurso** mostra os eventos de cada batalha, tentativas e reentregas; batalhas antigas indicam cobertura parcial. Veja as [fontes, permissões e limites dessas observações](docs/control-room.md).
+
 Para a avaliação da disciplina, há um [ensaio automatizado de falha e comparação de escala](docs/requirements-experiments.md), com [resultados medidos e dados para auditoria](docs/requirements-results.md). Ele remove um worker durante 100 batalhas, verifica reentrega dos mesmos IDs e compara três rodadas com 1, 3 e 5 workers sob a mesma carga.
 
 A porta pode ser alterada em `APP_PORT`. Documentação interativa: **http://localhost:8080/api/docs**; contrato OpenAPI: **/api/openapi.json**. A interface principal e sua fonte são locais; o Swagger UI usa o CDN configurado pelo FastAPI e precisa de acesso à internet no navegador.
@@ -78,6 +80,8 @@ A API registra batalha e outbox na mesma transação antes de retornar **HTTP 20
 | GET | /api/battles/{id} | Resultado e ataques |
 | POST | /api/battles/batch | Lote de 1 a 1000 batalhas; retorna 202 |
 | GET | /api/stats | Estados, tempo médio e distribuição por worker |
+| GET | /api/control | Estado da aplicação e observações reais do RabbitMQ e Kubernetes |
+| GET | /api/battles/{battle_id}/trace | Percurso persistido, tentativas e reentregas, com paginação |
 | GET | /api/adventures/catalog | Classes, cinco fases e ganhos por atributo |
 | POST / GET | /api/adventures | Criar herói com cinco pontos / listar aventuras |
 | GET | /api/adventures/{id} | Herói, nível, fase e recompensa pendente |

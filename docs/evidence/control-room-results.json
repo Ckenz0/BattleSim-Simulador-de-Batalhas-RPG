@@ -1,0 +1,68 @@
+{
+  "observed_at": "2026-11-10T12:20:45.232965+00:00",
+  "validation": {
+    "python_unit_api_tests": 152,
+    "javascript_tests": 30,
+    "compose_integration_tests": 8,
+    "kustomize_profiles": 5,
+    "server_dry_run": "passed",
+    "browser_compose": "passed",
+    "browser_kubernetes": "passed",
+    "browser_fixture_cases": "separate from live observations"
+  },
+  "cluster": {
+    "status": "ok",
+    "desired_replicas": 5,
+    "available_replicas": 5,
+    "ready_workers": 5,
+    "slots_per_worker": 20,
+    "configured_capacity": 100,
+    "metrics_status": "ok",
+    "metrics_observed_at": "2026-11-10T12:20:27Z",
+    "hpa": {
+      "min_replicas": 5,
+      "max_replicas": 5,
+      "current_replicas": 5,
+      "desired_replicas": 5,
+      "target_cpu_percent": 60,
+      "current_cpu_percent": 23
+    }
+  },
+  "batch": {
+    "batch_id": "26fbaaad-4672-49dc-834a-d6df26d40549",
+    "count": 100,
+    "completed": 100,
+    "failed": 0,
+    "elapsed_seconds": 33.7,
+    "max_unacknowledged": 100,
+    "max_ready": 0,
+    "max_worker_cpu_cores": 1.003071774,
+    "traces_validated": 100,
+    "finished_at": "2026-11-10T12:19:56.460813+00:00"
+  },
+  "queues_after_drain": [
+    {
+      "name": "battles.requests.v1",
+      "ready": 0,
+      "unacknowledged": 0,
+      "consumers": 5
+    },
+    {
+      "name": "battles.events.v1",
+      "ready": 0,
+      "unacknowledged": 0,
+      "consumers": 1
+    }
+  ],
+  "observer_authorization": {
+    "get_pods_in_battlesim": true,
+    "get_secrets_in_battlesim": false,
+    "patch_worker_deployment": false
+  },
+  "limitations": [
+    "Single observed run, not a repeated performance benchmark.",
+    "HPA fixed at 5/5 for this run; this does not demonstrate elasticity.",
+    "Unacknowledged messages are broker deliveries awaiting ACK, not a measurement of simultaneous CPU execution.",
+    "Snapshots have separate source times and up to five seconds of collector caching."
+  ]
+}

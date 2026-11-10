@@ -8,11 +8,12 @@ configMapGenerator:
     literals:
       # Keep the real CPU work visible long enough to inspect all 100 slots.
       - WORKER_CPU_ITERATIONS=10000000
+      - CONTROL_WORKER_CONCURRENCY=20
 images:
   - name: battlesim-worker
     newTag: concurrent100-v1
   - name: battlesim-frontend
-    newTag: concurrent100-v1
+    newTag: control-v1
 patches:
   - target:
       kind: HorizontalPodAutoscaler

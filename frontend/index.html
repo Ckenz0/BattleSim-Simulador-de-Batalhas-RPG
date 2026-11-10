@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/css/arena.css">
   <link rel="stylesheet" href="/css/adventure.css">
   <link rel="stylesheet" href="/css/batch.css">
+  <link rel="stylesheet" href="/css/control.css">
   <script src="/js/app.js" type="module"></script>
 </head>
 <body>
@@ -21,6 +22,8 @@
     <symbol id="bow" viewBox="0 0 24 24"><path d="M4 3c19-1 18 19 18 19L4 3Zm0 0v18h18M2 22 21 3m-6 0h6v6"/></symbol>
     <symbol id="history-icon" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7m2-5v6l4 2"/></symbol>
     <symbol id="load-icon" viewBox="0 0 24 24"><path d="M3 20h18M6 16V9m6 7V3m6 13v-5"/></symbol>
+    <symbol id="control-icon" viewBox="0 0 24 24"><path d="M3 4h18v13H3zM8 21h8m-4-4v4M6 11h3l2-4 3 7 2-3h2"/></symbol>
+    <symbol id="trace-icon" viewBox="0 0 24 24"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M5 7v7a5 5 0 0 0 5 5h7M12 5h7m-3-3 3 3-3 3"/></symbol>
     <symbol id="plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
     <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
   </svg>
@@ -35,6 +38,8 @@
       <button class="nav-item" data-view="characters"><svg><use href="#shield"/></svg>Personagens <span id="roster-count" class="nav-count">0</span></button>
       <button class="nav-item" data-view="history"><svg><use href="#history-icon"/></svg>Histórico</button>
       <button class="nav-item" data-view="load"><svg><use href="#load-icon"/></svg>Teste de carga</button>
+      <button class="nav-item" data-view="control" aria-label="Sala de controle"><svg><use href="#control-icon"/></svg>Sala de controle</button>
+      <button class="nav-item" data-view="trace" aria-label="Percurso da batalha"><svg><use href="#trace-icon"/></svg>Percurso da batalha</button>
     </nav>
     <div class="sidebar-note"><span class="status-dot"></span>Simulador de batalhas RPG<small>Serviços em Nuvem · 2026</small></div>
   </aside>
@@ -131,6 +136,14 @@
         <details class="batch-global"><summary>Atividade de todos os lotes e resultados por worker</summary><dl class="load-metrics"><div><dt>Solicitadas</dt><dd data-stat="total">0</dd></div><div><dt>Na fila</dt><dd data-stat="pending">0</dd></div><div><dt>Em combate</dt><dd data-stat="processing">0</dd></div><div><dt>Concluídas</dt><dd data-stat="completed">0</dd></div><div><dt>Com erro</dt><dd data-stat="failed">0</dd></div><div><dt>Tempo médio</dt><dd id="average-time">0 ms</dd></div></dl>
           <h2 class="workers-title">Processamento por worker</h2><div class="table-wrap"><table><caption class="sr-only">Distribuição de batalhas entre workers</caption><thead><tr><th>Worker</th><th>Concluídas</th><th>Com erro</th></tr></thead><tbody id="worker-body"></tbody></table></div><p id="workers-empty" class="muted">Nenhum resultado recebido ainda.</p><p id="unpublished" class="field-note"></p>
         </details>
+      </section>
+      <section id="view-control" class="view" hidden>
+        <div class="page-title"><div><h1>Sala de controle</h1><p>Acompanhe os pedidos, as filas e a capacidade dos workers com as fontes de cada leitura.</p></div></div>
+        <div id="control-root"></div>
+      </section>
+      <section id="view-trace" class="view" hidden>
+        <div class="page-title"><div><h1>Percurso da batalha</h1><p>Do pedido registrado ao resultado recebido: consulte os eventos de uma batalha.</p></div></div>
+        <div id="trace-root"></div>
       </section>
     </main>
     <footer>BattleSim <span>Crie. Combine. Entre na arena.</span></footer>

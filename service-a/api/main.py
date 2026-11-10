@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import Field, StrictInt, model_validator
 
 from battle_contracts.logging import log
-from battle_contracts.models import Character, CharacterCreate, Contract
+from battle_contracts.models import Character, CharacterCreate, Contract, utcnow
 from .database import Database
 from .adventures import AdventureStore, AdventureConflict
 from .adventure_routes import router as adventure_router
@@ -35,6 +35,8 @@ def create_app(db_path: str | Path | None = None, broker_enabled=True) -> FastAP
         app.state.db = Database(db_path or os.getenv("DATABASE_PATH", "data/battlesim.db"))
         app.state.adventures = AdventureStore(app.state.db)
         app.state.bus = None
+        from .control_metrics import ControlMetrics
+        app.state.control_metrics = ControlMetrics()
         if broker_enabled:
             from .messaging import MessageBus
             app.state.bus = MessageBus(app.state.db, os.environ["RABBITMQ_URL"])
@@ -120,6 +122,18 @@ def create_app(db_path: str | Path | None = None, broker_enabled=True) -> FastAP
     @app.get("/api/stats")
     def stats(request: Request):
         return request.app.state.db.stats()
+
+    @app.get("/api/battles/{battle_id}/trace")
+    def battle_trace(battle_id: UUID, request: Request, limit: int=Query(100,ge=1,le=200),
+                     offset: int=Query(0,ge=0)):
+        return request.app.state.db.battle_trace(battle_id,limit,offset)
+
+    @app.get("/api/control")
+    def control(request: Request):
+        # Sync endpoint runs in FastAPI's threadpool; network reads never block the event loop.
+        observations = request.app.state.control_metrics.snapshot()
+        return {**observations, 'observed_at': utcnow().isoformat(), 'refresh_after_seconds': 5,
+                'api': health(request), 'application': request.app.state.db.stats()}
 
     return app
 

@@ -25,13 +25,59 @@ foreach ($profile in $profiles) {
             Assert-Manifest ($document -match '(?m)^  namespace: battlesim$') "Namespace incorreto: $kind/$name"
         }
     }
-    Assert-Manifest ($objects.Count -eq 12) 'Esperados 12 objetos.'
+    Assert-Manifest ($objects.Count -eq 15) 'Esperados 15 objetos.'
+    Assert-Manifest ($rendered -notmatch '(?m)^kind: ClusterRole(?:Binding)?$') 'Observador nao pode ter permissoes de cluster.'
     $api = $objects['Deployment/service-a']
+    Assert-Manifest ($api -match 'serviceAccountName: battlesim-observer' -and $api -match 'automountServiceAccountToken: true') 'API deve usar o token do observador.'
+    Assert-Manifest ($api -match 'image: battlesim-api:control-v1') 'Imagem API da Sala de Controle incorreta.'
+    Assert-Manifest ($objects['Deployment/frontend'] -match 'image: battlesim-frontend:control-v1') 'Imagem frontend da Sala de Controle incorreta.'
+    $observer = $objects['ServiceAccount/battlesim-observer']
+    Assert-Manifest ($observer -match 'automountServiceAccountToken: false') 'ServiceAccount nao deve montar tokens por padrao.'
+    # Compare the complete finite policy, including resourceNames, so adding a
+    # write verb, wildcard, Secret, logs/exec or an unscoped list fails offline.
+    $expectedRules = @'
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - apps
+  resourceNames:
+  - service-b
+  resources:
+  - deployments
+  verbs:
+  - get
+- apiGroups:
+  - autoscaling
+  resourceNames:
+  - service-b
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - get
+- apiGroups:
+  - metrics.k8s.io
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+'@
+    $role = $objects['Role/battlesim-observer']
+    $actualRules = ($role -split '(?m)^rules:\s*$', 2)[1]
+    Assert-Manifest (($actualRules -replace '\s+', '') -ceq ($expectedRules -replace '\s+', '')) 'Role deve conter somente as quatro permissoes de leitura previstas.'
+    $binding = $objects['RoleBinding/battlesim-observer']
+    Assert-Manifest ($binding -match 'roleRef:\s+apiGroup: rbac.authorization.k8s.io\s+kind: Role\s+name: battlesim-observer\s+subjects:\s+- kind: ServiceAccount\s+name: battlesim-observer\s+namespace: battlesim\s*$') 'RoleBinding deve vincular apenas o observador local.'
     Assert-Manifest ($api -match 'replicas: 1\s+selector:' -and $api -match 'type: Recreate') 'API precisa de uma replica e Recreate.'
     Assert-Manifest ($api -match 'claimName: api-data') 'API precisa do PVC SQLite.'
     Assert-Manifest ($api -match '/api/health/live' -and $api -match '/api/health/ready') 'Probes API ausentes.'
     Assert-Manifest ($objects['PersistentVolumeClaim/api-data'] -match 'ReadWriteOnce') 'PVC API ausente.'
     $worker = $objects['Deployment/service-b']
+    Assert-Manifest ($worker -match 'image: battlesim-worker:concurrent100-v1') 'Imagem worker existente deve ser preservada.'
     Assert-Manifest ($worker -notmatch '(?m)^  replicas:') 'Deployment worker nao deve resetar o HPA.'
     Assert-Manifest ($worker -notmatch 'httpGet:|livenessProbe:|readinessProbe:') 'Worker nao possui endpoint de saude.'
     Assert-Manifest ($worker -match 'cpu: 250m') 'CPU request do worker incorreto.'
@@ -43,9 +89,16 @@ foreach ($profile in $profiles) {
         Assert-Manifest ($workload -match 'requests:' -and $workload -match 'limits:') 'Workload sem requests/limits.'
         Assert-Manifest ($workload -match 'terminationGracePeriodSeconds:') 'Workload sem prazo de encerramento.'
     }
+    foreach ($workload in @($worker, $objects['Deployment/frontend'], $objects['StatefulSet/rabbitmq'])) {
+        Assert-Manifest ($workload -match 'automountServiceAccountToken: false' -and $workload -notmatch 'serviceAccountName: battlesim-observer') 'Somente API deve receber token Kubernetes.'
+    }
     $broker = $objects['StatefulSet/rabbitmq']
     Assert-Manifest ($broker -match 'volumeClaimTemplates:' -and $broker -match 'replicas: 1') 'RabbitMQ deve ter um Pod e PVC.'
     Assert-Manifest ($objects['Service/rabbitmq'] -match 'clusterIP: None') 'Service headless RabbitMQ ausente.'
+    Assert-Manifest ($objects['Service/rabbitmq'] -match 'name: metrics\s+port: 15692\s+targetPort: metrics' -and $broker -match 'containerPort: 15692\s+name: metrics') 'Exporter RabbitMQ interno ausente.'
+    foreach ($service in @('Service/service-a', 'Service/frontend', 'Service/rabbitmq')) {
+        Assert-Manifest ($objects[$service] -notmatch 'type: (NodePort|LoadBalancer)|nodePort:|externalIPs:') 'Services da aplicacao devem continuar internos.'
+    }
     $hpa = $objects['HorizontalPodAutoscaler/service-b']
     Assert-Manifest ($hpa -match 'apiVersion: autoscaling/v2') 'HPA precisa de autoscaling/v2.'
     Assert-Manifest ($hpa -match "minReplicas: $($profile.Min)\s" -and $hpa -match 'maxReplicas: 5\s') 'Limites HPA incorretos.'
@@ -58,7 +111,9 @@ foreach ($profile in $profiles) {
     Assert-Manifest ($api.Contains("name: $configName") -and $worker.Contains("name: $configName")) 'Referencias ConfigMap nao foram reescritas.'
     $iterations = $profile.Iterations
     Assert-Manifest ($objects[$config[0]] -match "WORKER_CPU_ITERATIONS: `"$iterations`"") 'Carga CPU incorreta.'
-    Write-Output "PASS: $path (12 objetos, guardrails estaticos)."
+    Assert-Manifest ($objects[$config[0]] -match "CONTROL_WORKER_CONCURRENCY: `"$($profile.Concurrency)`"") 'Capacidade informada ao observador difere do worker.'
+    Assert-Manifest ($objects[$config[0]] -match 'RABBITMQ_METRICS_URL: http://rabbitmq:15692/metrics/per-object') 'Endpoint interno do exporter incorreto.'
+    Write-Output "PASS: $path (15 objetos, guardrails estaticos e RBAC somente leitura)."
 }
 $nginx = Get-Content (Join-Path $PSScriptRoot 'frontend-nginx.conf') -Raw
 Assert-Manifest ($nginx -notmatch '(?m)^\s*resolver\s+127\.0\.0\.11') 'Resolver do Compose nao e valido no Kubernetes.'

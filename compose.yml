@@ -23,6 +23,8 @@ services:
       dockerfile: service-a/Dockerfile
     environment:
       DATABASE_PATH: /data/battlesim.db
+      RABBITMQ_METRICS_URL: http://rabbitmq:15692/metrics/per-object
+      CONTROL_WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-battlesim}:${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD no arquivo .env}@rabbitmq:5672/
     volumes:
       - api-data:/data
@@ -53,6 +55,9 @@ services:
     stop_grace_period: 35s
   rabbitmq:
     image: rabbitmq:4.2-alpine
+    # rabbitmq_prometheus is enabled in the official image; no host port.
+    expose:
+      - "15692"
     hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-battlesim}

@@ -36,7 +36,9 @@ spec:
       labels:
         app: service-a
     spec:
-      automountServiceAccountToken: false
+      serviceAccountName: battlesim-observer
+      # Only the API observes Kubernetes, using its namespace-scoped reader.
+      automountServiceAccountToken: true
       terminationGracePeriodSeconds: 35
       securityContext:
         runAsNonRoot: true

@@ -1,5 +1,7 @@
 # Kubernetes e HPA
 
+A [Sala de Controle](../docs/control-room.md) reúne observações da API, filas e Kubernetes. A API usa `ServiceAccount/battlesim-observer` com permissões de leitura apenas no namespace `battlesim`; o exporter RabbitMQ em `15692` permanece interno. API e frontend usam `control-v1`; o worker mantém `concurrent100-v1`.
+
 Para demonstrar 100 batalhas concorrentes, use o [perfil local dedicado 5 × 20](../docs/concurrent100.md). Ele fixa cinco workers antes da carga; o ensaio de elasticidade abaixo continua separado, com HPA de 1 a 5 e um slot por worker.
 
 Para o cluster integrado do Docker Desktop nesta máquina, veja o [procedimento local](local-setup.md), com versões fixadas dos addons, acesso em `http://localhost:8081` e overlays próprios. O roteiro genérico abaixo continua aplicável a outros clusters.
@@ -43,9 +45,9 @@ Os manifests de `base/` pressupõem um cluster, um controller e Metrics Server j
 ## Construir e disponibilizar imagens
 
 ```powershell
-docker build -f service-a/Dockerfile -t battlesim-api:local .
+docker build -f service-a/Dockerfile -t battlesim-api:control-v1 .
 docker build -f service-b/Dockerfile -t battlesim-worker:concurrent100-v1 .
-docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:concurrent100-v1 .
+docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:control-v1 .
 ```
 
 O frontend inclui o conteúdo atual de `frontend/`; reconstrua após mudanças. Os Dockerfiles API/worker são os mesmos do Compose. `imagePullPolicy: IfNotPresent` permite imagens locais, mas o runtime **do cluster** deve enxergá-las. Docker Desktop pode usar armazenamento distinto do daemon Docker conforme a configuração. Confira o runtime; em outros clusters, carregue as imagens pelo mecanismo do cluster ou publique em seu registry e ajuste `images` em `k8s/base/kustomization.yaml`. Nenhuma publicação é feita aqui. Prefira tags novas por versão; se reutilizar `:local`, assegure que os nós receberam a imagem nova e reinicie o Deployment correspondente. Não remova PVCs para atualizar imagens.
@@ -166,7 +168,7 @@ kubectl kustomize k8s/overlays/docker-desktop-concurrent100
 git diff --check -- k8s
 ```
 
-O script renderiza a base e os quatro overlays de aplicação, com 12 recursos cada. Verifica namespace, CPU, concorrência por perfil, prazo de encerramento, referências do ConfigMap com hash, ausência de Secret versionado, API uma réplica/Recreate/PVC, recursos, probes existentes, HPA e Ingress; também verifica sintaxe PowerShell e guardrails MIME/trace/CSP. Isso **não** valida todo o schema Kubernetes, sintaxe completa NGINX ou disponibilidade de storage, métricas e imagens. Complete com `--dry-run=server`, build de imagens e experimentos reais no cluster escolhido. Os experimentos já executados nesta máquina estão em [docs/kubernetes-validation.md](../docs/kubernetes-validation.md).
+O script renderiza a base e os quatro overlays de aplicação, com 15 recursos cada. Verifica namespace, CPU, concorrência por perfil, prazo de encerramento, referências do ConfigMap com hash, ausência de Secret versionado, API uma réplica/Recreate/PVC, recursos, probes existentes, HPA e Ingress; também verifica sintaxe PowerShell e guardrails MIME/trace/CSP. Isso **não** valida todo o schema Kubernetes, sintaxe completa NGINX ou disponibilidade de storage, métricas e imagens. Complete com `--dry-run=server`, build de imagens e experimentos reais no cluster escolhido. Os experimentos já executados nesta máquina estão em [docs/kubernetes-validation.md](../docs/kubernetes-validation.md).
 
 Não execute `kubectl delete -k k8s`, remova namespace ou PVCs para repetir experimentos: isso pode eliminar dados. Substitua somente Pods worker nos testes de reposição. Backup, restore e remoção de dados exigem procedimento próprio.
 
