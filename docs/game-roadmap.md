@@ -23,8 +23,8 @@ A etapa atual acrescenta uma aventura enxuta: nome e uma das três classes, cinc
 
 Essas linhas são o roteiro do produto, não funcionalidades já disponíveis. A referência sugere quatro chefes: Rei Goblin, Dragão Jovem, Necromante e Rainha Aranha. Números de níveis, recompensas e equilíbrio serão definidos quando cada camada entrar em desenvolvimento.
 
-## Arquitetura da disciplina
+## Arquitetura distribuída
 
 A evolução do jogo mantém a separação entre API e worker por RabbitMQ, snapshots nas mensagens e idempotência dos resultados. A tarefa computacional continua funcionando sem depender da duração da animação no navegador. Reproduzir uma luta não solicita nova simulação.
 
-Kubernetes, recuperação de Pods e HPA de CPU seguem como entregas de infraestrutura previstas em k8s/README.md. Ampliar o domínio não substitui essas demonstrações da disciplina.
+Kubernetes, recuperação de Pods e HPA de CPU têm implantação e verificações descritas em k8s/README.md. A evolução do domínio preserva essa arquitetura.

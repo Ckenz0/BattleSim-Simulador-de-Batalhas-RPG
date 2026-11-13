@@ -1,6 +1,6 @@
 # Persistent, loopback-only access through the actual NGINX Ingress Controller.
 [CmdletBinding()]
-param([ValidateRange(1024, 65535)][int]$Port = 8081)
+param([ValidateRange(1024, 65535)][int]$Port = 8081, [ValidateRange(1, 60)][int]$RequestTimeoutSeconds = 8)
 $ErrorActionPreference = 'Stop'
 $kubectlCommand = (Get-Command kubectl).Source
 # Windows network compartments can hide kubectl's listeners from Get-NetTCPConnection.
@@ -21,7 +21,7 @@ if ($existing.Count -gt 0) {
     # A matching forward was already handled above. Never adopt an ambiguous one.
     throw "Porta $Port ocupada por outro processo ou encaminhamento. Use -Port com uma porta livre."
 }
-& $kubectlCommand --context docker-desktop -n nginx-ingress get service nginx-ingress -o name
+& $kubectlCommand --context docker-desktop "--request-timeout=${RequestTimeoutSeconds}s" -n nginx-ingress get service nginx-ingress -o name
 if ($LASTEXITCODE -ne 0) { throw 'O controller NGINX precisa estar instalado no contexto docker-desktop.' }
 $gitDirectory = & git -C (Split-Path $PSScriptRoot -Parent) rev-parse --absolute-git-dir
 if ($LASTEXITCODE -ne 0) { throw 'Execute a partir de um checkout Git do BattleSim.' }

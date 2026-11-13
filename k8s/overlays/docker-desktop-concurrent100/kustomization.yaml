@@ -13,7 +13,7 @@ images:
   - name: battlesim-worker
     newTag: concurrent100-v1
   - name: battlesim-frontend
-    newTag: control-v1
+    newTag: presentation-v1
 patches:
   - target:
       kind: HorizontalPodAutoscaler

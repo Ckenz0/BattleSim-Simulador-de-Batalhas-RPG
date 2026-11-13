@@ -82,9 +82,9 @@ kubectl --context docker-desktop -n battlesim get pods,hpa
 
 O helper remove o override de CPU criado pelo teste quando ele não existia originalmente, ou restaura a entrada anterior quando existia, além dos limites do HPA. Reaplicar apenas o Kustomize pode preservar um override adicionado fora do último `apply`; por isso não é o procedimento de recuperação usado aqui. Se o JSON não tiver `original_settings`, a validação inicial parou antes de entrar no bloco de alterações.
 
-## Relação com os requisitos da disciplina
+## Propriedades técnicas verificadas
 
-| Requisito | Onde demonstrar |
+| Propriedade | Evidência |
 | --- | --- |
 | Quatro componentes no Compose e entrada somente pelo NGINX | [Arquitetura](architecture.md), `compose.yml` e testes de integração |
 | Serviços A/B desacoplados por RabbitMQ | Contratos em `contracts/`, configuração dos serviços e correlação de logs |
@@ -93,6 +93,6 @@ O helper remove o override de CPU criado pelo teste quando ele não existia orig
 | Substituição automática de Pod | UID antes/depois e reentregas do ensaio de falha |
 | Alteração da quantidade de réplicas | Comparativo controlado de 1, 3 e 5 workers |
 | Aumento/redução automática via HPA de CPU | Experimento separado [1 → 5 → 1](kubernetes-validation.md) |
-| Explicar decisões, limitações e comportamento | Este roteiro, relatório de resultados e [arquitetura efetiva](architecture.md) |
+| Decisões arquiteturais e limites operacionais documentados | Este roteiro, relatório de resultados e [arquitetura efetiva](architecture.md) |
 
 Referências: [encerramento de Pods](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination) e [confirmações/reentrega RabbitMQ](https://www.rabbitmq.com/docs/confirms).

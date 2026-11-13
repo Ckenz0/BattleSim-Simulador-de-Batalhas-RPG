@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {spawn,execFileSync} from 'node:child_process';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,writeFile,readdir,readFile} from 'node:fs/promises';
 import {createServer} from 'node:net';
 import path from 'node:path';
 
@@ -8,6 +8,7 @@ import path from 'node:path';
 // and long trace pages. Only the live smoke creates a duel; it never changes infrastructure.
 const base=(process.env.BATTLESIM_BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/,'');
 const out=path.resolve(process.env.BATTLESIM_CONTROL_QA_DIR || '.git/control-ui-browser');await mkdir(out,{recursive:true});
+const downloadDir=path.join(out,'downloads-'+Date.now());await mkdir(downloadDir,{recursive:true});
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(check,timeout=20000){const end=Date.now()+timeout;let last;while(Date.now()<end){try{const value=await check();if(value)return value;}catch(error){last=error;}await delay(100);}throw Error('Browser condition timed out'+(last?': '+last.message:''));}
 async function api(endpoint,options={}){const response=await fetch(base+'/api'+endpoint,{...options,headers:{'Content-Type':'application/json'}});assert.ok(response.ok,endpoint+' returned '+response.status);return response.json();}
@@ -21,12 +22,12 @@ const trace=await until(async()=>{const value=await api('/battles/'+battle.id+'/
 assert.equal(trace.coverage,'from_creation');assert.ok(trace.items.some(item=>item.event_type==='accepted'));
 const fixtureId='00000000-0000-4000-8000-000000000099';
 const observed='2026-11-10T12:30:00Z';
-let metricMode='ok',controlFailure=false,traceMode='long';
+let metricMode='ok',controlFailure=false,traceMode='long',fixtureReplicas=1,fixedProfile=false;
 function controlFixture(){return {observed_at:observed,refresh_after_seconds:5,api:{status:'ok',database:true,broker_connected:true},
   application:{total:104,pending:4,processing:2,completed:97,failed:1,unpublished:0,average_processing_ms:12.5,workers:[{worker_id:'worker-observed',completed:97,failed:1}]},
   broker:{status:'ok',observed_at:observed,source:'rabbitmq_prometheus',queues:[{name:'battles.requests.v1',ready:4,unacknowledged:2,consumers:3},{name:'battles.events.v1',ready:0,unacknowledged:0,consumers:1}]},
   cluster:{status:'ok',observed_at:observed,desired_replicas:3,available_replicas:2,ready_workers:2,slots_per_worker:2,configured_capacity:4,
-    hpa:{min_replicas:1,max_replicas:5,current_replicas:3,desired_replicas:3,target_cpu_percent:60,current_cpu_percent:metricMode==='ok'?42:null},
+    hpa:{min_replicas:fixedProfile?5:1,max_replicas:5,current_replicas:fixtureReplicas,desired_replicas:fixtureReplicas,target_cpu_percent:60,current_cpu_percent:metricMode==='ok'?42:null},
     metrics_status:metricMode,metrics_observed_at:metricMode==='ok'?observed:null,metrics_error_code:metricMode==='unavailable'?'http_503':null,
     pods:[{name:'service-b-observed-worker-a-long-name',uid:'fixture-pod-a',phase:'Running',ready:true,cpu_cores:metricMode==='ok'?0.125:null,memory_bytes:metricMode==='ok'?52428800:null,restarts:0,cpu_request_cores:0.25,cpu_limit_cores:1,memory_request_bytes:67108864,memory_limit_bytes:268435456}]}};}
 function traceFixture(url){const offset=Number(new URL(url).searchParams.get('offset') || 0),total=traceMode==='legacy'?2:105;
@@ -60,15 +61,30 @@ try {
       throw error;
     }
   };
-  async function capture(name){await run('document.fonts.ready');await run("window.scrollTo({top:0,behavior:'instant'})");const shot=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});await writeFile(path.join(out,name),Buffer.from(shot.data,'base64'));screenshots.push(name);}
+  async function capture(name){await run('document.fonts.ready');await run("window.scrollTo({top:0,behavior:'instant'})");const shot=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:!(await run('innerWidth<600'))});await writeFile(path.join(out,name),Buffer.from(shot.data,'base64'));screenshots.push(name);}
   async function viewport(width,height,mobile=false){await cdp('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile});await delay(100);assert.equal(await run('document.documentElement.scrollWidth>innerWidth+1'),false,'Unexpected page overflow at '+width);}
   await cdp('Page.enable');await cdp('Runtime.enable');await cdp('Network.enable');await cdp('Network.setCacheDisabled',{cacheDisabled:true});
+  await cdp('Page.setDownloadBehavior',{behavior:'allow',downloadPath:downloadDir});
   await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   await viewport(1440,1000);await cdp('Page.navigate',{url:base+'/#control'});
   await check("document.querySelector('#control-content')?.textContent.includes('Exportador Prometheus do RabbitMQ')");
   assert.ok(await run("document.querySelector('#control-content').textContent.includes('Tempo médio histórico')"));
   if(liveControl.cluster.status==='not_configured')assert.ok(await run("document.querySelector('#control-content').textContent.includes('Kubernetes não configurado')"));
+  await run("document.querySelector('#experiment-empty a, #experiment-empty [data-goto=load]').click()");
+  assert.equal(await run("document.querySelector('#view-load').hidden"),false,'Experiment load action must use application navigation');
+  await run("document.querySelector('[data-view=control]').click()");await check("!document.querySelector('#control-refresh').disabled");
   await capture('control-live-desktop.png');await viewport(390,844,true);await capture('control-live-mobile.png');
+  // Record actual Compose observations and verify both browser downloads.
+  await run("document.querySelector('#experiment-start').click()");
+  await check("!document.querySelector('#experiment-results').hidden && !document.querySelector('#control-refresh').disabled");
+  await run("document.querySelector('#control-refresh').click()");await check("document.querySelector('#experiment-status').textContent.includes('2 de')");
+  await run("document.querySelector('#experiment-stop').click();document.querySelector('#experiment-json').click();document.querySelector('#experiment-csv').click()");
+  await until(async()=>{const files=await readdir(downloadDir);return files.some(f=>f.endsWith('.json')) && files.some(f=>f.endsWith('.csv'));});
+  const downloadFiles=await readdir(downloadDir),recording=JSON.parse(await readFile(path.join(downloadDir,downloadFiles.find(f=>f.endsWith('.json'))),'utf8'));
+  assert.equal(recording.state,'stopped');assert.equal(recording.samples.length,2);assert.equal(recording.samples[0].snapshot.broker.source,'rabbitmq_prometheus');
+  const csv=await readFile(path.join(downloadDir,downloadFiles.find(f=>f.endsWith('.csv'))),'utf8');assert.ok(csv.includes('queue_ready'));
+  await run("document.querySelector('#experiment-reset').click();document.querySelector('#experiment-cancel').click()");
+  assert.equal(await run("document.querySelector('#experiment-results').hidden"),false);
   // A real history entry must lead directly to the same trace returned by the real API.
   await run("document.querySelector('[data-view=history]').click()");await check(`Boolean(document.querySelector('[data-trace="${battle.id}"]'))`);
   await run(`document.querySelector('[data-trace="${battle.id}"]').click()`);
@@ -83,20 +99,47 @@ try {
   await run("document.querySelector('[data-view=control]').click()");await check("document.querySelector('#control-content').textContent.includes('service-b-observed-worker-a-long-name')");
   await viewport(1440,1000);await capture('control-cluster-fixture-desktop.png');
   await viewport(390,844,true);await capture('control-cluster-fixture-mobile.png');
+  // Isolated Kubernetes response and clock fixtures exercise the timeline, not a live HPA run.
+  await run("globalThis.qaOriginalNow=Date.now;globalThis.qaNow=Date.now();Date.now=()=>globalThis.qaNow;document.querySelector('#experiment-reset').click();document.querySelector('#experiment-discard').click()");
+  await check("document.querySelector('#experiment-status').textContent.includes('1 de') && !document.querySelector('#control-refresh').disabled");
+  let sampleCount=1;
+  for(const replicas of [3,5,3,1]) {
+    fixtureReplicas=replicas;sampleCount++;
+    await run("globalThis.qaNow+=10000;document.querySelector('#control-refresh').click()");
+    await check(`document.querySelector('#experiment-status').textContent.includes('${sampleCount} de') && !document.querySelector('#control-refresh').disabled`);
+  }
+  assert.ok(await run("document.querySelector('#experiment-summary').textContent.includes('1 → 3 → 5 → 3 → 1')"));
+  assert.equal(await run("document.querySelectorAll('.experiment-plot svg').length"),3);
+  await viewport(1440,1000);await capture('elasticity-fixture-desktop.png');
+  await viewport(390,844,true);await capture('elasticity-fixture-mobile.png');
+  await run("document.querySelector('.experiment-charts').scrollIntoView({behavior:'instant'})");
+  const mobileChartShot=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(path.join(out,'elasticity-charts-fixture-mobile.png'),Buffer.from(mobileChartShot.data,'base64'));screenshots.push('elasticity-charts-fixture-mobile.png');
+  await run("document.querySelector('.experiment-readings').open=true");
+  assert.equal(await run("document.querySelector('#experiment-readings tr:last-child td:nth-child(3)').textContent"),'1');
+  assert.equal(await run("document.querySelector('#experiment-readings tr:last-child td:nth-child(5)').textContent"),'60 %');
+  assert.equal(await run('document.documentElement.scrollWidth>innerWidth+1'),false,'Expanded accessible table must not overflow the page');
+  fixedProfile=true;fixtureReplicas=5;sampleCount++;
+  await run("globalThis.qaNow+=5000;document.querySelector('#control-refresh').click()");
+  await check("document.querySelector('#experiment-profile').textContent.includes('Capacidade fixa') && !document.querySelector('#control-refresh').disabled");
+  assert.ok(await run("document.querySelector('.experiment-warning').textContent.includes('limites do HPA mudaram')"));
   await run("document.querySelector('.control-pod summary').click()");
   await check("document.querySelector('.control-pod').open");
   metricMode='unavailable';await run("document.querySelector('#control-refresh').click()");
   await check("document.querySelector('.control-pod-usage').textContent.includes('Indisponível')");
+  assert.equal(await run("document.querySelector('#experiment-readings tr:last-child td:nth-child(4)').textContent"),'Indisponível');
   assert.equal(await run("document.querySelector('.control-pod').open"),true,'Polling must preserve expanded pod details');
   assert.equal(await run("document.querySelector('.control-pod-usage').textContent.includes('0 núcleos')"),false);
   controlFailure=true;await run("document.querySelector('#control-refresh').click()");
   await check("!document.querySelector('.control-error').hidden");
+  assert.equal(await run("document.querySelector('#experiment-readings tr:last-child td:last-child').textContent"),'Consulta indisponível');
   assert.equal(await run("document.querySelector('#control-root').textContent.includes('secret://')"),false);
   assert.ok(await run("document.querySelector('#control-content').textContent.includes('service-b-observed-worker-a-long-name')"));
   const hiddenReads=controlReads;await run("Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))");
   await delay(5300);assert.equal(controlReads,hiddenReads,'Hidden document must pause control requests');
+  assert.ok(await run("document.querySelector('#experiment-status').textContent.includes('pausada')"));
   controlFailure=false;await run("delete document.hidden;document.dispatchEvent(new Event('visibilitychange'))");
   await check("document.querySelector('.control-error').hidden && !document.querySelector('#control-refresh').disabled");
+  await run("document.querySelector('#experiment-stop').click();Date.now=globalThis.qaOriginalNow");
   await run(`document.querySelector('[data-view=trace]').click();document.querySelector('#trace-id').value='${fixtureId}';document.querySelector('.trace-lookup').requestSubmit()`);
   await check("document.querySelectorAll('.trace-event').length===100");
   assert.ok(await run("document.querySelector('#trace-range').textContent.includes('1–100 de 105')"));
@@ -109,7 +152,7 @@ try {
   await viewport(1440,1000);await capture('trace-legacy-fixture-desktop.png');
   const inactiveReads=controlReads;await delay(5300);assert.equal(controlReads,inactiveReads,'Leaving control room must stop its requests');
   assert.deepEqual(errors,[]);
-  const report={live:{battle_id:battle.id,broker_status:liveControl.broker.status,cluster_status:liveControl.cluster.status,trace_events:trace.items.length},passed:['real application/control sources','real duel trace/history entry','unknown UUID recovery','desktop/mobile no overflow','fixture cluster/HPA/CPU/memory','missing metrics remain unavailable','pod details survive polling','safe stale/error handling','document visibility pauses reads','trace pagination 100 + 5','explicit legacy partial coverage','leaving control room stops reads'],screenshots,errors};
+  const report={live:{battle_id:battle.id,broker_status:liveControl.broker.status,cluster_status:liveControl.cluster.status,trace_events:trace.items.length,experiment_samples:recording.samples.length},downloads:downloadFiles,passed:['real application/control sources','real observation recording and JSON/CSV downloads','new collection discard protection','fixture replica timeline 1-3-5-3-1','fixed HPA and profile change warning','experiment missing readings and visibility pause','real duel trace/history entry','unknown UUID recovery','desktop/mobile no overflow','fixture cluster/HPA/CPU/memory','missing metrics remain unavailable','pod details survive polling','safe stale/error handling','document visibility pauses reads','trace pagination 100 + 5','explicit legacy partial coverage','leaving control room stops reads'],screenshots,errors};
   await writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 } finally {
   ws?.close();for(const callback of pending.values())clearTimeout(callback.timer);

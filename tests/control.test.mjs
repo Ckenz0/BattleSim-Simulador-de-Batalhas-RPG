@@ -6,6 +6,23 @@ const A='00000000-0000-4000-8000-000000000001';
 const B='00000000-0000-4000-8000-000000000002';
 const defer=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('observation hooks receive each successful response once and exclude stale or failed data',async()=>{
+  const timer=scheduler(),old=defer(),seen=[],failures=[];let calls=0;
+  const monitor=new ControlMonitor({...timer,onSample:data=>seen.push(data),onFailure:()=>failures.push(true),api:async()=>{
+    calls++;if(calls===1)return old.promise;if(calls===3)throw Error('private');return {observed_at:'fresh'};
+  }});
+  monitor.setVisible(true);monitor.setVisible(false);monitor.setVisible(true);await flush();
+  old.resolve({observed_at:'stale'});await flush();assert.deepEqual(seen,[{observed_at:'fresh'}]);
+  await monitor.refresh();assert.equal(seen.length,1);assert.equal(failures.length,1);monitor.setVisible(false);
+});
+
+test('a read retains the recording context from its start, even if a new collection starts',async()=>{
+  const timer=scheduler(),pending=defer();let context=1,seen;
+  const monitor=new ControlMonitor({...timer,contextForRead:()=>context,onSample:(_data,readContext)=>seen=readContext,api:()=>pending.promise});
+  monitor.setVisible(true);context=2;pending.resolve({observed_at:'old collection'});await flush();
+  assert.equal(seen,1);monitor.setVisible(false);
+});
 function scheduler(){const scheduled=new Map();let index=0;return {scheduled,schedule:(callback,delay)=>{scheduled.set(++index,{callback,delay});return index;},cancel:id=>scheduled.delete(id)};}
 
 test('default browser timers never receive the monitor as their Window receiver',async t=>{

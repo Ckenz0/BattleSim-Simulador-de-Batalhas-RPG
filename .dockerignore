@@ -9,3 +9,12 @@ __pycache__
 .impeccable
 PRODUCT.md
 DESIGN.md
+.agents
+.codex
+.claude
+.cursor
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+SKILL.md
+docs/superpowers

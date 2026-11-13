@@ -1,0 +1,101 @@
+{
+  "observed_at": "2026-11-13T03:37:50.411381+00:00",
+  "application_revision": "7de133906a747d3860ecefbba5ebcd285c7b4dc3",
+  "compose": {
+    "running_services": [
+      "nginx",
+      "rabbitmq",
+      "service-a",
+      "service-b"
+    ],
+    "only_nginx_publishes_ports": true,
+    "health": {
+      "status": "ok",
+      "database": true,
+      "broker_connected": true
+    },
+    "integration_tests_passed": 8
+  },
+  "kubernetes": {
+    "context": "docker-desktop",
+    "overlay": "k8s/overlays/docker-desktop-hpa",
+    "health": {
+      "status": "ok",
+      "database": true,
+      "broker_connected": true
+    },
+    "metrics_status": "ok",
+    "hpa_min": 1,
+    "hpa_max": 5,
+    "final_current_replicas": 1,
+    "final_desired_replicas": 1,
+    "pvc_volumes": {
+      "api-data": "pvc-00a3e4ff-b815-4080-9ca3-33dfdba715a1",
+      "data-rabbitmq-0": "pvc-74be76cf-e08a-432d-9b48-2067b407584f"
+    }
+  },
+  "hpa_experiment": {
+    "request_id": "hpa-6a1bca01104d4820aa858c80aabe75e2",
+    "load_duration_seconds": 120,
+    "target_backlog": 30,
+    "batch_size": 15,
+    "worker_cpu_iterations": 5000000,
+    "worker_concurrency": 1,
+    "submitted": 637,
+    "completed": 637,
+    "failed": 0,
+    "unique_battle_ids_verified": 637,
+    "distinct_workers_verified": 5,
+    "sample_count": 32,
+    "transitions": [
+      {
+        "replicas": 1,
+        "elapsed_seconds": 0
+      },
+      {
+        "replicas": 3,
+        "elapsed_seconds": 76
+      },
+      {
+        "replicas": 5,
+        "elapsed_seconds": 106
+      },
+      {
+        "replicas": 4,
+        "elapsed_seconds": 288
+      },
+      {
+        "replicas": 3,
+        "elapsed_seconds": 349
+      },
+      {
+        "replicas": 2,
+        "elapsed_seconds": 409
+      },
+      {
+        "replicas": 1,
+        "elapsed_seconds": 470
+      }
+    ],
+    "peak_cpu_percent_of_request": 398,
+    "drained_after_seconds": 152,
+    "final_pending": 0,
+    "final_processing": 0,
+    "final_unpublished": 0,
+    "raw_evidence": "hpa-evidence-2026-11-13.json",
+    "raw_sha256": "9946dd554dffbae255d08c4c83a24af07f8c41260180439d70728da96cea2d15",
+    "increased": true,
+    "decreased": true
+  },
+  "checks": {
+    "nginx_compose_config": "passed",
+    "nginx_kubernetes_config": "passed",
+    "server_dry_run": "passed",
+    "kustomize_profiles_passed": 5
+  },
+  "limitations": [
+    "Single observed HPA run; not a performance benchmark.",
+    "Sample timestamps begin before the load generator; replica changes are sampled every approximately 15 seconds.",
+    "Existing application data and PVCs were retained; integration and load tests add demonstration records."
+  ]
+}

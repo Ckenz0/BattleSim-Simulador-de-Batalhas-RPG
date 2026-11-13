@@ -62,4 +62,6 @@ Somente depois da volta automática a uma réplica foi reaplicado `k8s/overlays/
 - Addons e os dois overlays locais passaram em `kubectl apply --dry-run=server`; os guardrails de base/HPA, sintaxe PowerShell e whitespace passaram.
 - API continua com uma réplica/Recreate e SQLite. RabbitMQ continua com um nó. Estes testes demonstram persistência local, reposição de Pod e elasticidade dos workers; não demonstram alta disponibilidade nem tolerância à perda do nó.
 
-Amostras detalhadas, UIDs e logs operacionais ficam localmente em `.git/local-cluster/`, sem credenciais e fora do versionamento. Este documento registra o resumo verificável para a entrega acadêmica.
+As 31 amostras detalhadas do HPA estão preservadas no [JSON versionado de 08/11/2026](evidence/hpa-evidence-2026-11-08.json), com [origem e SHA-256](evidence/README.md). A exportação mantém os bytes do arquivo original, incluindo horários, CPU, condições do HPA, réplicas e backlog. Outros logs operacionais e UIDs continuam localmente em `.git/local-cluster/`.
+
+A [revalidação de 13/11/2026](delivery-validation.md) repetiu a integração Compose e o ciclo automático do HPA, com [32 novas amostras](evidence/hpa-evidence-2026-11-13.json) e o ambiente final preparado no perfil de elasticidade.

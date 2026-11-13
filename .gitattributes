@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# Preserve the original bytes and SHA-256 of collected HPA samples.
+docs/evidence/hpa-evidence-*.json -text whitespace=cr-at-eol

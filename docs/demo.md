@@ -87,4 +87,4 @@ A integração altera o estado do ambiente local, cria registros de teste e rest
 
 ## Demonstrações complementares
 
-O Compose demonstra containers, fila, recuperação e distribuição. A implantação Kubernetes e o HPA já foram executados; veja o [roteiro local](../k8s/local-setup.md) e as [evidências](kubernetes-validation.md). Para aprofundar a avaliação, use o [ensaio de falha durante100 batalhas e comparação1/3/5workers](requirements-experiments.md). Ele complementa o perfil de100 tarefas concorrentes e preserva o teste separado de elasticidade automática.
+O Compose demonstra containers, fila, recuperação e distribuição. A implantação Kubernetes e o HPA já foram executados; veja o [roteiro local](../k8s/local-setup.md) e as [evidências](kubernetes-validation.md). Para verificar recuperação sob carga e efeito da quantidade de réplicas, use o [ensaio de falha durante100 batalhas e comparação1/3/5workers](requirements-experiments.md). Ele complementa o perfil de100 tarefas concorrentes e preserva o teste separado de elasticidade automática.

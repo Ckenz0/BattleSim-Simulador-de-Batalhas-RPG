@@ -39,5 +39,38 @@
 .history-actions{display:flex;gap:8px}
 .batch-trace-link{display:block;color:var(--accent);font-size:12px;text-decoration:underline;text-underline-offset:4px;margin-top:10px}
 .trace-summary-link{margin-top:18px}
+.experiment{margin:0 0 40px;padding:26px 0 30px;border-block:1px solid var(--line);min-width:0}
+.experiment-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.experiment-heading h2{margin-bottom:8px}
+.experiment-profile{font-size:12px;color:var(--accent);padding:7px 0;flex-shrink:0}
+.experiment-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:4px 0 18px}
+.experiment-exports{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
+.experiment-status{font-size:13px;margin-bottom:8px;color:var(--text);font-variant-numeric:tabular-nums}
+.experiment-empty{padding:22px 0 0;max-width:72ch}
+.experiment-empty h3{font-size:20px;margin-bottom:10px}
+.experiment-empty p,.experiment-chart-note,.experiment-readings caption{font-size:12px;line-height:1.7;color:var(--muted)}
+.experiment-empty a{display:inline-block;color:var(--accent);font-size:13px;text-underline-offset:4px;margin:12px 0}
+.experiment-confirm{padding:16px;margin-bottom:18px;background:var(--accent-bg);border-radius:8px;color:var(--text)}
+.experiment-confirm p{font-size:13px;margin-bottom:12px}.experiment-confirm .button{margin:0 8px 8px 0}
+.experiment-summary{max-width:840px;margin-top:22px}.experiment-summary dd{font-variant-numeric:tabular-nums}
+.experiment-summary .control-description{margin-top:12px}
+.experiment-warning{font-size:13px;color:#f3d49e;margin:12px 0}
+.experiment-charts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:28px 0 12px}
+.experiment-chart{margin:0;min-width:0}.experiment-chart h3{font-size:18px;margin-bottom:6px}
+.experiment-plot svg{display:block;width:100%;height:auto;overflow:visible}
+.experiment-plot text{fill:var(--muted);stroke:none;font:11px system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.experiment-grid{stroke:var(--line);stroke-width:1}
+.experiment-line{fill:none;stroke-width:2;stroke-linejoin:round}
+.experiment-line.series-0{stroke:var(--accent)}.experiment-line.series-1{stroke:#87c9aa;stroke-dasharray:5 4}
+.experiment-point.series-0{fill:var(--accent)}.experiment-point.series-1{fill:#87c9aa}
+.experiment-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:6px}
+.experiment-series{display:flex;align-items:center;gap:6px}.experiment-series:before{content:'';width:18px;border-top:2px solid var(--accent)}
+.experiment-series.series-1:before{border-color:#87c9aa;border-top-style:dashed}
+.experiment-chart-note{max-width:85ch;margin-bottom:20px}
+.experiment-readings summary{font-size:13px;padding:12px 0;cursor:pointer;color:var(--accent)}
+.experiment-readings caption{text-align:left;padding:12px 0}.experiment-readings td{font-variant-numeric:tabular-nums}
+.experiment a:focus-visible,.experiment button:focus-visible,.experiment summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+@media(max-width:1100px){.experiment-charts{grid-template-columns:1fr}.experiment-chart{max-width:860px}.experiment-plot svg{max-height:235px}.experiment-heading{flex-wrap:wrap;gap:0}}
+@media(max-width:600px){.experiment-exports{margin-left:0;width:100%}.experiment-actions .button{min-height:44px}.experiment-heading{display:block}.experiment-profile{display:block;padding:0 0 16px}.experiment-summary .control-facts>div{flex-direction:column;gap:6px}.experiment-summary .control-facts dd{max-width:100%;text-align:left}.experiment-charts{gap:28px}}
 @media(max-width:760px){#control-content{grid-template-columns:1fr;gap:28px}.control-toolbar,.trace-toolbar{align-items:flex-start;gap:12px}.trace-events .control-facts{grid-template-columns:1fr}.trace-event-heading{align-items:flex-start}.trace-event-heading h2{font-size:22px}}
 @media(max-width:480px){.sidebar nav{overflow-x:auto;justify-content:flex-start;gap:8px;padding-bottom:3px}.sidebar .nav-item{flex-shrink:0;padding-inline:10px}.control-toolbar,.trace-toolbar{flex-direction:column}.trace-lookup>div{flex-direction:column}.control-facts>div{gap:12px}.control-facts dd{max-width:60%}.trace-event-heading{flex-direction:column;gap:8px}}

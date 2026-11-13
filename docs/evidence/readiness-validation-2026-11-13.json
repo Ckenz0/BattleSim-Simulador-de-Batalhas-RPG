@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-13T15:51:44.5484591Z",
+  "ready": true,
+  "context": "docker-desktop",
+  "startup_requested": true,
+  "urls": [
+    "http://127.0.0.1:8080/#control",
+    "http://localhost:8081/#control"
+  ],
+  "checks": [
+    {
+      "Id": "docker",
+      "Name": "Docker Engine",
+      "Status": "PASS",
+      "Details": "Engine Linux acessivel.",
+      "Action": ""
+    },
+    {
+      "Id": "compose",
+      "Name": "Quatro servicos Compose",
+      "Status": "PASS",
+      "Details": "Servicos ativos; healthchecks de entrada, API e broker.",
+      "Action": ""
+    },
+    {
+      "Id": "nodes",
+      "Name": "No Kubernetes Ready",
+      "Status": "PASS",
+      "Details": "Contexto explicito docker-desktop.",
+      "Action": ""
+    },
+    {
+      "Id": "workloads",
+      "Name": "Workloads atualizados e prontos",
+      "Status": "PASS",
+      "Details": "API, worker, frontend e RabbitMQ com replicas Ready.",
+      "Action": ""
+    },
+    {
+      "Id": "storage",
+      "Name": "Volumes persistentes Bound",
+      "Status": "PASS",
+      "Details": "PVCs da API e broker vinculados.",
+      "Action": ""
+    },
+    {
+      "Id": "ingress",
+      "Name": "Ingress NGINX local",
+      "Status": "PASS",
+      "Details": "Regra localhost e controller pronto.",
+      "Action": ""
+    },
+    {
+      "Id": "http",
+      "Name": "APIs Compose e Ingress",
+      "Status": "PASS",
+      "Details": "Compose na porta publicada pelo NGINX e Ingress 8081, banco e broker prontos.",
+      "Action": ""
+    },
+    {
+      "Id": "metrics",
+      "Name": "Metricas reais de CPU e memoria",
+      "Status": "PASS",
+      "Details": "API de metricas e leitura CPU do HPA disponiveis; zero medido e valido.",
+      "Action": ""
+    },
+    {
+      "Id": "hpa",
+      "Name": "Perfil de elasticidade 1 a 5",
+      "Status": "PASS",
+      "Details": "CPU alvo 60%, request 250m, carga 5000000 e concorrencia 1.",
+      "Action": ""
+    },
+    {
+      "Id": "queues",
+      "Name": "Filas e outbox drenadas",
+      "Status": "PASS",
+      "Details": "Zero pendentes, em processamento, sem ACK e aguardando publicacao; consumidores conectados.",
+      "Action": ""
+    },
+    {
+      "Id": "baseline",
+      "Name": "Linha de base de um worker",
+      "Status": "PASS",
+      "Details": "Uma replica atual, desejada e pronta antes da carga.",
+      "Action": ""
+    },
+    {
+      "Id": "frontend",
+      "Name": "Historico visual publicado",
+      "Status": "PASS",
+      "Details": "Modulo da coleta servido pelo Ingress.",
+      "Action": ""
+    }
+  ]
+}

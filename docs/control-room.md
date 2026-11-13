@@ -2,6 +2,8 @@
 
 A Sala de Controle reúne o estado persistido das batalhas, o caminho das mensagens, as filas RabbitMQ e as observações do cluster. Abra a interface pelo mesmo NGINX usado pelo jogo. No Kubernetes local, o endereço continua `http://localhost:8081`; no Compose, use a porta configurada em `APP_PORT` (padrão `8080`).
 
+O painel **Experimento de elasticidade** registra as leituras recebidas nesta aba e apresenta gráficos de workers, CPU e fila, com exportação JSON/CSV. O [roteiro de apresentação](elasticity-presentation.md) explica os controles, as fontes e os limites da coleta.
+
 ## Consultas
 
 | Endpoint | Conteúdo |
@@ -52,11 +54,11 @@ O plugin `rabbitmq_prometheus` já é habilitado na imagem oficial `rabbitmq:4.2
 
 ## Atualizar e validar
 
-API e frontend têm uma nova revisão; o worker mantém a revisão existente:
+A API mantém `control-v1`; o frontend com histórico de elasticidade usa `presentation-v1`. O worker mantém a revisão existente:
 
 ```powershell
 docker build -f service-a/Dockerfile -t battlesim-api:control-v1 .
-docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:control-v1 .
+docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:presentation-v1 .
 # Construa o worker somente se a imagem ainda nao estiver disponivel no runtime.
 docker build -f service-b/Dockerfile -t battlesim-worker:concurrent100-v1 .
 & ./k8s/Test-Manifests.ps1

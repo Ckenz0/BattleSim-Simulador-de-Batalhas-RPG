@@ -12,3 +12,21 @@ htmlcov/
 .worktrees/
 AGENTS.md
 **/AGENTS.md
+# Local assistant context and tooling; never part of the source distribution.
+.agents/
+.codex/
+.claude/
+.cursor/
+.copilot/
+.impeccable/
+.aider*
+CLAUDE.md
+GEMINI.md
+SKILL.md
+PRODUCT.md
+DESIGN.md
+docs/superpowers/
+.github/agents/
+.github/instructions/
+.github/copilot-instructions.md
+projeto_integrador_servicos_de_nuvem.pdf

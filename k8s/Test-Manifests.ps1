@@ -30,7 +30,7 @@ foreach ($profile in $profiles) {
     $api = $objects['Deployment/service-a']
     Assert-Manifest ($api -match 'serviceAccountName: battlesim-observer' -and $api -match 'automountServiceAccountToken: true') 'API deve usar o token do observador.'
     Assert-Manifest ($api -match 'image: battlesim-api:control-v1') 'Imagem API da Sala de Controle incorreta.'
-    Assert-Manifest ($objects['Deployment/frontend'] -match 'image: battlesim-frontend:control-v1') 'Imagem frontend da Sala de Controle incorreta.'
+    Assert-Manifest ($objects['Deployment/frontend'] -match 'image: battlesim-frontend:presentation-v1') 'Imagem frontend do historico de elasticidade incorreta.'
     $observer = $objects['ServiceAccount/battlesim-observer']
     Assert-Manifest ($observer -match 'automountServiceAccountToken: false') 'ServiceAccount nao deve montar tokens por padrao.'
     # Compare the complete finite policy, including resourceNames, so adding a

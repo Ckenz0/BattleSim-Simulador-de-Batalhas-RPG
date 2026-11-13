@@ -1,4 +1,5 @@
 import {ControlMonitor,TraceMonitor,formatMetric,formatMemory} from './control.mjs';
+import {ExperimentView} from './experiment-view.mjs';
 
 const statuses={pending:'Na fila',processing:'Em combate',completed:'Concluída',failed:'Com erro'};
 const sources={ok:'Disponível',degraded:'Degradado',partial:'Parcial',unavailable:'Indisponível',not_configured:'Não configurado',error:'Indisponível'};
@@ -30,9 +31,12 @@ export class ControlView {
   constructor(root,{api}) {
     this.root=root;this.active=false;
     root.innerHTML=`<div class="control-toolbar"><p id="control-freshness" role="status" aria-live="polite">Aguardando consulta.</p><button id="control-refresh" class="button secondary small">Atualizar agora</button></div><p class="control-error" role="status" hidden></p><div id="control-content"></div>`;
-    this.monitor=new ControlMonitor({api,onChange:()=>this.render()});
+    const experimentRoot=create('section');root.insertBefore(experimentRoot,root.querySelector('#control-content'));
+    this.experiment=new ExperimentView(experimentRoot,{refresh:()=>this.monitor.refresh()});
+    this.monitor=new ControlMonitor({api,onChange:()=>this.render(),contextForRead:()=>this.experiment.recorder.runId,
+      onSample:(data,context)=>this.experiment.observe(data,context),onFailure:context=>this.experiment.fail(context)});
     root.querySelector('#control-refresh').addEventListener('click',()=>void this.monitor.refresh());
-    this.visibility=()=>this.monitor.setVisible(this.active && !document.hidden);
+    this.visibility=()=>{const visible=this.active && !document.hidden;this.experiment.setVisible(visible);this.monitor.setVisible(visible);};
     document.addEventListener('visibilitychange',this.visibility);this.render();
   }
   setVisible(visible) {this.active=visible;this.visibility();}

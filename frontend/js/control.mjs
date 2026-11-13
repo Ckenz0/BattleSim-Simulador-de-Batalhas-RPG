@@ -2,8 +2,8 @@ export const validBattleId=value=>/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$
 
 // Visibility is supplied by the view so no background control-room reads survive navigation.
 export class ControlMonitor {
-  constructor({api,onChange=()=>{},schedule=(callback,delay)=>setTimeout(callback,delay),cancel=timer=>clearTimeout(timer)}) {
-    Object.assign(this,{api,onChange,schedule,cancel});
+  constructor({api,onChange=()=>{},onSample=()=>{},onFailure=()=>{},contextForRead=()=>undefined,schedule=(callback,delay)=>setTimeout(callback,delay),cancel=timer=>clearTimeout(timer)}) {
+    Object.assign(this,{api,onChange,onSample,onFailure,contextForRead,schedule,cancel});
     this.visible=false;this.data=null;this.error=null;this.loading=false;this.generation=0;
   }
   setVisible(visible) {
@@ -15,14 +15,17 @@ export class ControlMonitor {
     if(!this.visible || this.loading)return;
     this.cancel(this.timer);
     const generation=this.generation,controller=new AbortController();this.controller=controller;
+    const context=this.contextForRead();
     this.loading=true;this.onChange();
     try {
       const data=await this.api('/control',{signal:controller.signal});
       if(generation!==this.generation)return;
       this.data=data;this.error=null;
+      this.onSample(data,context);
     } catch(error) {
       if(generation!==this.generation || controller.signal.aborted)return;
       this.error='Não foi possível consultar a sala. A próxima consulta será feita automaticamente.';
+      this.onFailure(context);
     } finally {
       if(generation===this.generation) {
         this.loading=false;this.onChange();

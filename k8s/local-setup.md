@@ -4,6 +4,16 @@ O [perfil de 100 batalhas concorrentes](../docs/concurrent100.md) usa o mesmo cl
 
 Este procedimento usa o Kubernetes integrado do Docker Desktop no Windows, em modo **kind**, com um nó. O Compose em `8080` e seus volumes são independentes. O cluster mantém outra base de personagens/aventuras; não importa os dados do Compose.
 
+Antes de usar um cluster já criado, inicie o Docker Desktop e confira o engine e o nó:
+
+```powershell
+docker desktop start --timeout 180
+docker info --format '{{.ServerVersion}}'
+kubectl --context docker-desktop get nodes
+```
+
+Após reiniciar o Desktop, aguarde também os rollouts da aplicação e a disponibilidade da API de métricas; o nó `Ready` sozinho não garante DNS, broker e métricas prontos. Reabra o acesso com `& ./k8s/Start-LocalIngress.ps1`. O [roteiro da entrega](../docs/delivery-validation.md) reúne essas verificações e a seleção do perfil HPA.
+
 ## Preparação e implantação
 
 1. No Docker Desktop, abra **Kubernetes → Create cluster**, selecione **kind**, um nó e a versão disponível. A instalação verificada usa Kubernetes `1.36.1` e containerd `2.3.1`.
@@ -22,7 +32,7 @@ Na raiz do repositório, construa as imagens atuais:
 ```powershell
 docker build -f service-a/Dockerfile -t battlesim-api:control-v1 .
 docker build -f service-b/Dockerfile -t battlesim-worker:concurrent100-v1 .
-docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:control-v1 .
+docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:presentation-v1 .
 ```
 
 Na configuração testada, o cluster do Docker Desktop acessou essas imagens locais diretamente. Isso foi confirmado pela execução dos Pods e seus eventos. Em outro runtime, siga o mecanismo de carregamento de imagens do ambiente; não suponha que a imagem existe no nó apenas porque aparece em `docker image ls`.

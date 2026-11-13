@@ -8,6 +8,8 @@ A primeira entrega usa Python, FastAPI, SQLite, RabbitMQ, NGINX, Docker Compose 
 
 Requisitos: Docker Engine com Compose v2 ou superior, ou Docker Desktop com backend Linux/WSL2 em execução. Python local não é necessário para executar os containers.
 
+Para continuar o desenvolvimento em outra máquina, siga o [guia de clonagem e configuração](docs/another-computer.md).
+
 1. Copie `.env.example` para `.env`:
    - PowerShell: `Copy-Item .env.example .env`
    - Linux/macOS: `cp .env.example .env`
@@ -25,11 +27,21 @@ Para duelos livres, crie pelo menos dois personagens em **Personagens**, selecio
 
 O cluster local configurado no Docker Desktop usa **http://localhost:8081**, com uma base separada do Compose. Consulte [como iniciar o acesso local](k8s/local-setup.md) e as [evidências de implantação, reposição e HPA](docs/kubernetes-validation.md).
 
+Para preparar a demonstração, siga o [roteiro de validação técnica](docs/delivery-validation.md), começando pela inicialização do Docker Desktop e pela conferência das métricas. A [certificação técnica da implementação](docs/technical-certification.md) reúne os resultados e seus limites. Escolha o perfil conforme o experimento:
+
+No ambiente local já implantado, prepare e confira tudo com `& ./scripts/Prepare-Presentation.ps1 -Start`. Sem `-Start`, o comando faz somente leitura. Ele verifica Compose, Kubernetes, volumes, Ingress, métricas, perfil HPA e fila drenada, indica como corrigir falhas e salva o relatório em `.git/presentation-readiness.json`. A [divisão sugerida das falas e demonstrações](docs/presentation-script.md) organiza o ensaio entre Cauê, Bruno e Rafael; o [guia da coleta visual](docs/elasticity-presentation.md) explica gráficos e exportação.
+
+| Experimento local | Overlay | Workers / concorrência |
+| --- | --- | --- |
+| Elasticidade automática por CPU | `k8s/overlays/docker-desktop-hpa` | HPA de 1 a 5, um slot por worker e carga real de CPU |
+| Capacidade de 100 batalhas concorrentes | `k8s/overlays/docker-desktop-concurrent100` | Cinco workers fixos, 20 slots por worker |
+| Jogo sem carga extra de CPU | `k8s/overlays/docker-desktop` | HPA de 1 a 5, um slot por worker |
+
 O modo de [100 batalhas concorrentes](docs/concurrent100.md) usa cinco workers com 20 slots cada. Em **Teste de carga**, selecione o lote de 100 e acompanhe os estados individuais, o progresso e os resultados. Esse perfil mantém cinco workers preparados; o ensaio de elasticidade de 1 a 5 workers continua disponível separadamente.
 
 Em **Sala de controle**, consulte as filas reais do RabbitMQ, os estados da aplicação e, no Kubernetes, workers, CPU, memória e HPA. **Percurso** mostra os eventos de cada batalha, tentativas e reentregas; batalhas antigas indicam cobertura parcial. Veja as [fontes, permissões e limites dessas observações](docs/control-room.md).
 
-Para a avaliação da disciplina, há um [ensaio automatizado de falha e comparação de escala](docs/requirements-experiments.md), com [resultados medidos e dados para auditoria](docs/requirements-results.md). Ele remove um worker durante 100 batalhas, verifica reentrega dos mesmos IDs e compara três rodadas com 1, 3 e 5 workers sob a mesma carga.
+O [ensaio automatizado de falha e comparação de escala](docs/requirements-experiments.md) possui [resultados medidos e dados para auditoria](docs/requirements-results.md). Ele remove um worker durante 100 batalhas, verifica reentrega dos mesmos IDs e compara três rodadas com 1, 3 e 5 workers sob a mesma carga.
 
 A porta pode ser alterada em `APP_PORT`. Documentação interativa: **http://localhost:8080/api/docs**; contrato OpenAPI: **/api/openapi.json**. A interface principal e sua fonte são locais; o Swagger UI usa o CDN configurado pelo FastAPI e precisa de acesso à internet no navegador.
 
@@ -169,4 +181,4 @@ uv run python scripts/export_contracts.py
 - `docs/`: arquitetura e roteiro reproduzível.
 - `k8s/`: manifestos Kustomize, volumes, Ingress NGINX, HPA de CPU e roteiro de validação em cluster.
 
-Integrantes: **Cauê Kenzo Adaniya** ([Ckenz0](https://github.com/Ckenz0)), **Bruno Oliveira** ([mo-bruno](https://github.com/mo-bruno)) e **Rafael** ([RafaelBeniites](https://github.com/RafaelBeniites)). O histórico registra evolução e coautoria. Configurações locais de agentes e credenciais não fazem parte da entrega.
+Integrantes: **Cauê Kenzo Adaniya** ([Ckenz0](https://github.com/Ckenz0)), **Bruno Oliveira** ([mo-bruno](https://github.com/mo-bruno)) e **Rafael** ([RafaelBeniites](https://github.com/RafaelBeniites)). O histórico registra evolução e coautoria.

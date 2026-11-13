@@ -1,0 +1,90 @@
+{
+  "observed_at": "2026-11-13T15:28:17.133229+00:00",
+  "application_base_revision": "7de133906a747d3860ecefbba5ebcd285c7b4dc3",
+  "includes_uncommitted_feature_changes": true,
+  "frontend_image": "battlesim-frontend:presentation-v1",
+  "checks": {
+    "python_passed": 152,
+    "javascript_passed": 41,
+    "kustomize_profiles_passed": 5,
+    "design_detector_findings": 0,
+    "frontend_build": "passed",
+    "kubernetes_frontend_rollout": "passed"
+  },
+  "browser_runs": {
+    "compose": {
+      "live": {
+        "battle_id": "35327364-e1cf-490a-b745-b7f80e32da3b",
+        "broker_status": "ok",
+        "cluster_status": "not_configured",
+        "trace_events": 4,
+        "experiment_samples": 2
+      },
+      "checks_passed": [
+        "real application/control sources",
+        "real observation recording and JSON/CSV downloads",
+        "new collection discard protection",
+        "fixture replica timeline 1-3-5-3-1",
+        "fixed HPA and profile change warning",
+        "experiment missing readings and visibility pause",
+        "real duel trace/history entry",
+        "unknown UUID recovery",
+        "desktop/mobile no overflow",
+        "fixture cluster/HPA/CPU/memory",
+        "missing metrics remain unavailable",
+        "pod details survive polling",
+        "safe stale/error handling",
+        "document visibility pauses reads",
+        "trace pagination 100 + 5",
+        "explicit legacy partial coverage",
+        "leaving control room stops reads"
+      ],
+      "browser_errors": [],
+      "viewports": [
+        1440,
+        390
+      ],
+      "local_report": ".git/elasticity-ui-final/report.json"
+    },
+    "kubernetes": {
+      "live": {
+        "battle_id": "e3e2f222-5555-49c5-9d5a-4753a70f3b96",
+        "broker_status": "ok",
+        "cluster_status": "ok",
+        "trace_events": 4,
+        "experiment_samples": 2
+      },
+      "checks_passed": [
+        "real application/control sources",
+        "real observation recording and JSON/CSV downloads",
+        "new collection discard protection",
+        "fixture replica timeline 1-3-5-3-1",
+        "fixed HPA and profile change warning",
+        "experiment missing readings and visibility pause",
+        "real duel trace/history entry",
+        "unknown UUID recovery",
+        "desktop/mobile no overflow",
+        "fixture cluster/HPA/CPU/memory",
+        "missing metrics remain unavailable",
+        "pod details survive polling",
+        "safe stale/error handling",
+        "document visibility pauses reads",
+        "trace pagination 100 + 5",
+        "explicit legacy partial coverage",
+        "leaving control room stops reads"
+      ],
+      "browser_errors": [],
+      "viewports": [
+        1440,
+        390
+      ],
+      "local_report": ".git/elasticity-cluster-ui/report.json"
+    }
+  },
+  "limitations": [
+    "Live checks recorded two observations per environment and verified real JSON/CSV browser downloads.",
+    "Replica transitions, fixed HPA, partial metrics and errors used explicit isolated API/clock fixtures.",
+    "This verification did not repeat a real HPA load cycle or the eight Compose recovery integration tests.",
+    "Full browser exports, screenshots and reports remain in the local .git QA directories."
+  ]
+}

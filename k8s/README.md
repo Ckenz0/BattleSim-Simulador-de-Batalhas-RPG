@@ -1,6 +1,6 @@
 # Kubernetes e HPA
 
-A [Sala de Controle](../docs/control-room.md) reúne observações da API, filas e Kubernetes. A API usa `ServiceAccount/battlesim-observer` com permissões de leitura apenas no namespace `battlesim`; o exporter RabbitMQ em `15692` permanece interno. API e frontend usam `control-v1`; o worker mantém `concurrent100-v1`.
+A [Sala de Controle](../docs/control-room.md) reúne observações da API, filas e Kubernetes, com [coleta e gráficos para apresentação](../docs/elasticity-presentation.md). A API usa `ServiceAccount/battlesim-observer` com permissões de leitura apenas no namespace `battlesim`; o exporter RabbitMQ em `15692` permanece interno. A API usa `control-v1`, o frontend usa `presentation-v1` e o worker mantém `concurrent100-v1`.
 
 Para demonstrar 100 batalhas concorrentes, use o [perfil local dedicado 5 × 20](../docs/concurrent100.md). Ele fixa cinco workers antes da carga; o ensaio de elasticidade abaixo continua separado, com HPA de 1 a 5 e um slot por worker.
 
@@ -47,7 +47,7 @@ Os manifests de `base/` pressupõem um cluster, um controller e Metrics Server j
 ```powershell
 docker build -f service-a/Dockerfile -t battlesim-api:control-v1 .
 docker build -f service-b/Dockerfile -t battlesim-worker:concurrent100-v1 .
-docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:control-v1 .
+docker build -f k8s/frontend.Dockerfile -t battlesim-frontend:presentation-v1 .
 ```
 
 O frontend inclui o conteúdo atual de `frontend/`; reconstrua após mudanças. Os Dockerfiles API/worker são os mesmos do Compose. `imagePullPolicy: IfNotPresent` permite imagens locais, mas o runtime **do cluster** deve enxergá-las. Docker Desktop pode usar armazenamento distinto do daemon Docker conforme a configuração. Confira o runtime; em outros clusters, carregue as imagens pelo mecanismo do cluster ou publique em seu registry e ajuste `images` em `k8s/base/kustomization.yaml`. Nenhuma publicação é feita aqui. Prefira tags novas por versão; se reutilizar `:local`, assegure que os nós receberam a imagem nova e reinicie o Deployment correspondente. Não remova PVCs para atualizar imagens.
